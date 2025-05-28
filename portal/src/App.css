@@ -1,0 +1,169 @@
+/* App.css */
+
+body {
+  font-family: sans-serif;
+  line-height: 1.6;
+  margin: 0;
+  background-color: #f4f4f4;
+  color: #333;
+}
+
+.App {
+  max-width: 800px;
+  margin: 20px auto;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  overflow: hidden; /* Contains children */
+}
+
+.App-header {
+  background-color: #4CAF50; /* A green to suggest 'go' or debate */
+  color: white;
+  padding: 1rem;
+  text-align: center;
+  border-bottom: 2px solid #388E3C;
+}
+
+.App-header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+}
+
+.App-main {
+  padding: 20px;
+}
+
+section {
+  margin-bottom: 30px;
+  padding: 20px;
+  background-color: #f9f9f9;
+  border-radius: 5px;
+  border: 1px solid #eee;
+}
+
+h2 {
+  margin-top: 0;
+  color: #4CAF50;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 5px;
+  margin-bottom: 15px;
+}
+
+.input-section form {
+  display: flex;
+  gap: 10px;
+}
+
+.input-section input[type="text"] {
+  flex-grow: 1;
+  padding: 10px 15px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.input-section button {
+  padding: 10px 20px;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.3s ease;
+}
+
+.input-section button:hover:not(:disabled) {
+  background-color: #45a049;
+}
+
+.input-section button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+.topic-display h2 {
+    color: #333;
+    border-bottom: none;
+}
+
+.debate-log-section .debate-log {
+  height: 400px; /* Set a fixed height */
+  overflow-y: auto; /* Enable vertical scrolling */
+  border: 1px solid #ddd;
+  padding: 15px;
+  background-color: #fff;
+  border-radius: 4px;
+}
+
+.log-entry {
+  margin-bottom: 15px;
+  padding: 12px;
+  border-radius: 5px;
+  border-left: 5px solid;
+}
+
+.log-entry strong {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.log-entry p {
+  margin: 0;
+}
+
+/* Speaker-specific styling */
+.log-entry.pro {
+  border-left-color: #2196F3; /* Blue for Pro */
+  background-color: #e3f2fd;
+}
+.log-entry.pro strong {
+  color: #1976D2;
+}
+
+.log-entry.con {
+  border-left-color: #f44336; /* Red for Con */
+  background-color: #ffebee;
+}
+.log-entry.con strong {
+  color: #d32f2f;
+}
+
+.log-entry.moderator {
+  border-left-color: #9E9E9E; /* Grey for Moderator */
+  background-color: #f5f5f5;
+}
+.log-entry.moderator strong {
+  color: #616161;
+}
+
+.loading-indicator {
+    text-align: center;
+    padding: 15px;
+    font-style: italic;
+    color: #777;
+}
+
+.error-message {
+  background-color: #ffdddd;
+  color: #d8000c;
+  border: 1px solid #f5c6cb;
+  padding: 15px;
+  margin-bottom: 20px;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.App-footer {
+    text-align: center;
+    padding: 15px;
+    margin-top: 20px;
+    font-size: 0.8rem;
+    color: #888;
+    background-color: #f4f4f4;
+    border-top: 1px solid #eee;
+}
