@@ -3,7 +3,7 @@ from flask_cors import CORS # Import CORS
 from google import genai
 import os
 import dotenv
-from utils import start_chat, send_chat_message
+from utils import start_chat, send_chat_message, generate_text_content
 
 dotenv.load_dotenv()
 
@@ -202,15 +202,15 @@ def judge_debate():
     if not debate_state["topic"]:
         return jsonify({"error": "Debate not started"}), 400
 
-
     # Generate a final judgment based on the debate
-    judgment = send_chat_message(
+    judgment = generate_text_content(
         debate_state["clients"]["moderator"]["client"],
-        f"Based on the debate about {debate_state['topic']}, provide a final judgment on who won the debate. Consider all arguments and rebuttals. Give one word answer: 'pro' or 'con'. Here is the transcript of the debate: {debate_state['debate_log']}"
-    ).text
+        f"Based on the debate about {debate_state['topic']}, provide a final judgment on who won the debate. Consider all arguments and rebuttals. Give one word answer: 'pro' or 'con'. Here is the transcript of the debate: {debate_state['debate_log']}", 
+        system_instructions="You are a debate judge. Analyze the debate transcript and provide a final judgment on who won the debate."
+    ).text.strip()
 
     if judgment.lower() not in ['pro', 'con']:
-        return jsonify({"error": "Invalid judgment. Must be 'pro' or 'con'."}), 500
+        return jsonify({"error": "Invalid judgment. Must be 'pro', 'con'."}), 400
 
     return jsonify({
         "message": "Debate judged",
