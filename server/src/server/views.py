@@ -6,6 +6,15 @@ from .utils import (
     send_chat_message,
     generate_text_content,
 )
+from src.database.database import (
+    async_session,
+    create_item,
+    get_item_by_id,
+    update_item,
+)
+import src.database.models as db_models
+
+
 from .schemas import (
     StartDebateRequest,
     StartDebateResponse,
@@ -15,13 +24,17 @@ from .schemas import (
     ClosingArgmentResponse,
     JudgeDebateResponse,
     JudgeDebateRequest,
+    GetDebateRequest,
+    GetDebateResponse,
 )
 from aiohttp_apispec import (
     docs,
     request_schema,
+    querystring_schema,
 )
 
 logger = logging.getLogger(__name__)
+USER_ID = 1
 
 
 @docs(
@@ -46,19 +59,8 @@ async def start_debate_view(request):
     max_sentences = request.app["max_sentences"]
 
     data = request["data"]
-
     topic = data["topic"]
-    if not topic:
-        return web.json_response({"error": "Topic is required"}, status=400)
-
-    # Reset debate state for a new debate
-    debate_state["topic"] = topic
-    debate_state["moderator_history"] = []
-    debate_state["pro_llm_history"] = []
-    debate_state["con_llm_history"] = []
-    debate_state["current_turn"] = "pro"
-    debate_state["debate_log"] = []
-    debate_state["questions"] = []
+    debate_logs = []
 
     # Re-initialize clients and chats
     debate_state["clients"]["pro"]["client"] = genai.Client(api_key=api_key)
@@ -91,33 +93,44 @@ async def start_debate_view(request):
         f"Opening statement for the debate topic: {topic}"
     ).text
 
-    debate_state["debate_log"].append(
+    debate_logs.append(
         {
             "speaker": "moderator",
             "response_type": "opening_statement",
             "text": initial_prompt,
         }
     )
-    debate_state["debate_log"].append(
+    debate_logs.append(
         {
             "speaker": "pro",
             "response_type": "opening_statement",
             "text": pro_side_response,
         }
     )
-    debate_state["debate_log"].append(
+    debate_logs.append(
         {
             "speaker": "con",
             "response_type": "opening_statement",
             "text": con_side_response,
         }
     )
+    async with async_session() as session:
+        # Save the debate topic to the database
+        debate: db_models.Debate = await create_item(
+            session,
+            {"topic": topic, "user_id": USER_ID, "logs": debate_logs},
+            db_models.Debate,
+        )
+        logger.info(f"Debate topic '{topic}' saved to database.")
+
     response_data = StartDebateResponse().dump(
         {
             "message": "Debate started",
+            "debate_id": debate.id,
             "topic": topic,
             "pro_initial": pro_side_response,
             "con_initial": con_side_response,
+            "logs": debate_logs,
         }
     )
 
@@ -146,9 +159,15 @@ async def process_turn_view(request):
 
     data = request["data"]
     question = data["question"]
+    debate_id = data["debate_id"]
 
-    if not debate_state["topic"]:
-        return web.json_response({"error": "Debate not started"}, status=400)
+    async with async_session() as session:
+        # Check if the debate exists in the database
+        debate: db_models.Debate = await get_item_by_id(
+            session, debate_id, db_models.Debate
+        )
+    if not debate:
+        return web.json_response({"error": "Debate not found"}, status=404)
 
     pro_client_chat = debate_state["clients"]["pro"]["chat"]
     con_client_chat = debate_state["clients"]["con"]["chat"]
@@ -158,7 +177,7 @@ async def process_turn_view(request):
             {"error": "Chat not initialized. Start debate first."}, status=400
         )
 
-    debate_state["questions"].append(question)
+    debate_logs = debate.logs
 
     pro_side_response = send_chat_message(
         pro_client_chat,
@@ -168,14 +187,14 @@ async def process_turn_view(request):
         con_client_chat,
         f"Respond to the question in opposition to: {question}. Provide your argument in {max_sentences} sentences.",
     ).text
-    debate_state["debate_log"].append(
+    debate_logs.append(
         {
             "speaker": "moderator",
             "response_type": "intitial_question_response",  # Note: "initial" was misspelled
             "text": question,
         }
     )
-    debate_state["debate_log"].append(
+    debate_logs.append(
         {
             "speaker": "pro",
             "response_type": "intitial_question_response",  # Note: "initial" was misspelled
@@ -183,7 +202,7 @@ async def process_turn_view(request):
         }
     )
     # Added this missing log for con side's initial response to the question
-    debate_state["debate_log"].append(
+    debate_logs.append(
         {
             "speaker": "con",
             "response_type": "intitial_question_response",  # Note: "initial" was misspelled
@@ -198,20 +217,28 @@ async def process_turn_view(request):
         con_client_chat,
         f"Rebuttal to the pro side's argument: {pro_side_response}. Provide your rebuttal in {max_sentences} sentences.",
     ).text
-    debate_state["debate_log"].append(
+    debate_logs.append(
         {
             "speaker": "pro",
             "response_type": "rebuttal",
             "text": pro_side_rebuttal,
         }
     )
-    debate_state["debate_log"].append(
+    debate_logs.append(
         {
             "speaker": "con",
             "response_type": "rebuttal",
             "text": con_side_rebuttal,
         }
     )
+    # Update the debate logs in the database
+    debate.logs = debate_logs
+    questions = debate.questions
+    questions.append(question)
+    async with async_session() as session:
+        update_dict = {"logs": debate.logs, "questions": questions}
+        await update_item(session, debate.id, update_dict, db_models.Debate)
+
     response_data = ProcessTurnResponse().dump(
         {
             "message": "Turn processed",
@@ -220,6 +247,8 @@ async def process_turn_view(request):
             "con_side_response": con_side_response,
             "pro_side_rebuttal": pro_side_rebuttal,
             "con_side_rebuttal": con_side_rebuttal,
+            "logs": debate.logs,
+            "questions": debate.questions,
         }
     )
     return web.json_response(response_data)
@@ -244,7 +273,16 @@ async def closing_arguments_view(request):
     debate_state = request.app["debate_state"]
     max_sentences = request.app["max_sentences"]
 
-    if not debate_state["topic"]:
+    data = request["data"]
+    debate_id: int = data["debate_id"]
+    async with async_session() as session:
+        # Check if the debate exists in the database
+        debate: db_models.Debate = await get_item_by_id(
+            session, debate_id, db_models.Debate
+        )
+    if not debate:
+        return web.json_response({"error": "Debate not found"}, status=404)
+    if not debate.topic:
         return web.json_response({"error": "Debate not started"}, status=400)
 
     pro_client_chat = debate_state["clients"]["pro"]["chat"]
@@ -265,25 +303,41 @@ async def closing_arguments_view(request):
         f"Provide your closing argument for the debate in {max_sentences} sentences.",
     ).text
 
-    debate_state["debate_log"].append(
+    debate.logs.append(
+        {
+            "speaker": "moderator",
+            "response_type": "closing_argument",
+            "text": "We will now hear the closing arguments from both sides.",
+        }
+    )
+
+    debate.logs.append(
         {
             "speaker": "pro",
             "response_type": "closing_argument",
             "text": pro_closing,
         }
     )
-    debate_state["debate_log"].append(
+    debate.logs.append(
         {
             "speaker": "con",
             "response_type": "closing_argument",
             "text": con_closing,
         }
     )
+    # Update the debate logs in the database
+    async with async_session() as session:
+        await update_item(session, debate.id, {"logs": debate.logs}, db_models.Debate)
+    logger.info(
+        f"Closing arguments processed for debate ID {debate_id}: Pro: {pro_closing}, Con: {con_closing}"
+    )
     response_data = ClosingArgmentResponse().dump(
         {
             "message": "Closing arguments processed",
             "pro_closing": pro_closing,
             "con_closing": con_closing,
+            "logs": debate.logs,
+            "questions": debate.questions,
         }
     )
     return web.json_response(response_data)
@@ -307,9 +361,19 @@ async def closing_arguments_view(request):
 async def judge_debate_view(request):
     debate_state = request.app["debate_state"]
     api_key = request.app["api_key"]  # Moderator client uses this directly if re-init
-
-    if not debate_state["topic"]:
+    data = request["data"]
+    debate_id = data["debate_id"]
+    async with async_session() as session:
+        # Check if the debate exists in the database
+        debate: db_models.Debate = await get_item_by_id(
+            session, debate_id, db_models.Debate
+        )
+    if not debate:
+        return web.json_response({"error": "Debate not found"}, status=404)
+    if not debate.topic:
         return web.json_response({"error": "Debate not started"}, status=400)
+    if not debate.logs:
+        return web.json_response({"error": "No debate logs found"}, status=400)
 
     # Ensure moderator client is available
     moderator_client = debate_state["clients"]["moderator"]["client"]
@@ -345,19 +409,73 @@ async def judge_debate_view(request):
                 status=500,
             )
 
-    debate_state["debate_log"].append(
+    debate.logs.append(
+        {
+            "speaker": "moderator",
+            "response_type": "narration",
+            "text": "We will now hear the final judgment on the debate.",
+        }
+    )
+
+    debate.logs.append(
         {
             "speaker": "moderator",
             "response_type": "judgment",
             "text": f"Judgment: The winner is {judgment}.",
         }
     )
+    # Update the debate logs in the database
+    async with async_session() as session:
+        await update_item(
+            session,
+            debate.id,
+            {"logs": debate.logs, "winner": judgment},
+            db_models.Debate,
+        )
+    # Log the judgment for debugging
     logger.info(f"Debate judged: {judgment}")
     response_data = JudgeDebateResponse().dump(
         {
             "message": "Debate judged",
             "judgment": judgment,
+            "logs": debate.logs,
+            "questions": debate.questions,
         }
     )
 
     return web.json_response(response_data)
+
+
+@docs(
+    tags=["get debate"],
+    summary="Retrieves a debate by ID",
+    description="Retrieves the details of a debate by its ID.",
+    responses={
+        200: {
+            "schema": GetDebateResponse,
+            "description": "Success response with debate details",
+        },
+        404: {"description": "Debate not found"},
+        422: {"description": "Validation error"},
+    },
+)
+@querystring_schema(GetDebateRequest)
+async def get_debate(request):
+    query_params = request["querystring"]
+    debate_id: int = query_params["debate_id"]
+    async with async_session() as session:
+        debate: db_models.Debate = await get_item_by_id(
+            session, debate_id, db_models.Debate
+        )
+    if not debate:
+        return web.json_response({"error": "Debate not found"}, status=404)
+    response_data = GetDebateResponse().dump(
+        {
+            "debate_id": debate.id,
+            "topic": debate.topic,
+            "logs": debate.logs,
+            "questions": debate.questions,
+            "winner": debate.winner,
+        }
+    )
+    return web.json_response(response_data, status=200)
