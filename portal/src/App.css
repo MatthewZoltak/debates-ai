@@ -6,6 +6,8 @@ body {
   margin: 0;
   background-color: #f4f4f4;
   color: #333;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .App {
@@ -15,7 +17,11 @@ body {
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   overflow: hidden; /* Contains children */
+  text-align: center; /* Center content */
 }
+
+
+
 
 .App-header {
   background-color: #4CAF50; /* A green to suggest 'go' or debate */

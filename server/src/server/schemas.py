@@ -106,3 +106,11 @@ class GetDebateResponse(Schema):
     questions = fields.List(fields.String)
     logs = fields.List(fields.Nested(DebateLog))
     winner = fields.String(required=False, allow_none=True)
+
+
+class GetUserDebatesResponse(Schema):
+    debates = fields.List(fields.Nested(GetDebateResponse), required=True)
+
+
+class GetUserDebatesRequest(Schema):
+    user_id = fields.Integer(required=True)

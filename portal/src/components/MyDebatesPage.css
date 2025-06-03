@@ -1,0 +1,90 @@
+/* src/components/MyDebatesPage.css */
+.my-debates-page {
+    padding: 5px;
+    max-width: 1200px;
+    margin: 20px auto; /* Add top margin to account for navbar */
+  }
+  
+  .page-header {
+    text-align: center;
+    margin-bottom: 30px;
+    color: #eee;
+  }
+  
+  .page-header h2 {
+    font-size: 2.5rem;
+    color: #4CAF50; /* Accent color */
+  }
+  
+  .debates-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+  }
+  
+  .debate-card {
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  }
+  
+  .debate-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+  }
+  
+  .debate-card-topic {
+    font-size: 1.4rem;
+    color: #4CAF50; /* Light green for topic */
+    margin-bottom: 10px;
+    min-height: 3em; /* Allow for 2 lines of topic */
+  }
+  
+  .debate-card-winner {
+    font-size: 1rem;
+    color: #000000;
+    margin-bottom: 15px;
+  }
+  
+  .debate-card-winner span.pro {
+    color: #4CAF50; /* Green for Pro */
+    font-weight: bold;
+  }
+  .debate-card-winner span.con {
+    color: #F44336; /* Red for Con */
+    font-weight: bold;
+  }
+  
+  .debate-card-id {
+    font-size: 0.8rem;
+    color: #777;
+    margin-bottom: 15px;
+  }
+  
+  .debate-card-button {
+    display: inline-block;
+    background-color: #4CAF50;
+    color: #282c34;
+    padding: 10px 15px;
+    text-align: center;
+    border-radius: 5px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background-color 0.2s ease;
+    margin-top: auto; /* Pushes button to the bottom if card content is short */
+  }
+  
+  .debate-card-button:hover {
+    background-color: #4CAF50;
+  }
+  
+  .no-debates-message {
+    text-align: center;
+    font-size: 1.2rem;
+    color: #aaa;
+    padding: 30px;
+  }

@@ -5,17 +5,19 @@ import '../App.css';
 
 const API_URL = 'http://127.0.0.1:5000'; // Your backend API URL
 
-// --- Web Speech API Helper (largely unchanged, ensure it's robust) ---
+// --- Web Speech API Helper (ensure this is robust) ---
 const synth = window.speechSynthesis;
 let voices = [];
 
 const loadVoices = () => {
     voices = synth.getVoices();
+    // console.log("Voices loaded in DebatePage:", voices.length, voices.map(v => v.name));
 };
 
 const speak = (text, speakerRole) => {
     return new Promise((resolve, reject) => {
         if (!text || text.trim() === "") {
+            // console.warn("Speak called with empty or whitespace-only text.");
             resolve(); return;
         }
         if (!synth) {
@@ -23,8 +25,9 @@ const speak = (text, speakerRole) => {
             resolve(); return;
         }
         if (synth.speaking) {
-            synth.cancel();
-            setTimeout(() => startSpeakingInternal(text, speakerRole, resolve, reject), 100); // Increased delay slightly
+            // console.warn("Synth was already speaking - cancelling before new utterance for:", text.substring(0,20));
+            synth.cancel(); // Cancel previous, then queue new one after a short delay
+            setTimeout(() => startSpeakingInternal(text, speakerRole, resolve, reject), 150); // Increased delay slightly for cancel to settle
         } else {
             startSpeakingInternal(text, speakerRole, resolve, reject);
         }
@@ -33,12 +36,14 @@ const speak = (text, speakerRole) => {
 
 const startSpeakingInternal = (text, speakerRole, resolve, reject) => {
     if (voices.length === 0) {
-        loadVoices();
+        loadVoices(); // Attempt to load voices if empty
+        // If still no voices, try once more after a delay. This is a fallback.
         if (voices.length === 0) {
-            setTimeout(() => { // Retry voice loading if still empty
+            // console.warn("Voices not available on first attempt in startSpeakingInternal. Retrying...");
+            setTimeout(() => {
                 loadVoices();
                 proceedWithSpeech(text, speakerRole, resolve, reject);
-            }, 300);
+            }, 300); // Further delay
             return;
         }
     }
@@ -50,8 +55,9 @@ const proceedWithSpeech = (text, speakerRole, resolve, reject) => {
     utterance.onend = resolve;
     utterance.onerror = (event) => {
         console.error('SpeechSynthesisUtterance.onerror for text "' + text.substring(0,30) + '...":', event);
-        reject(event);
+        reject(event); // Reject the promise on error
     };
+    console.log(`Speaking: "${text.substring(0,30)}..." with role: ${speakerRole}`);
     let selectedVoice = null;
     if (voices.length > 0) {
         const lowerSpeakerRole = speakerRole.toLowerCase();
@@ -66,7 +72,8 @@ const proceedWithSpeech = (text, speakerRole, resolve, reject) => {
             selectedVoice = voices.find(v => v.lang.startsWith('en') && v.default) || voices.find(v => v.lang.startsWith('en')) || voices[0];
         }
     }
-    utterance.voice = selectedVoice || (voices.length > 0 ? voices[0] : undefined);
+    utterance.voice = selectedVoice || (voices.length > 0 ? voices[0] : undefined); // Fallback to first available voice
+    // console.log(`Attempting to speak: "${text.substring(0,30)}..." with voice: ${utterance.voice?.name || 'System Default'}`);
     synth.speak(utterance);
 };
 // --- End Speech API Helper ---
@@ -82,102 +89,110 @@ function DebatePage() {
   const [questionsList, setQuestionsList] = useState([]);
   const [winner, setWinner] = useState(null);
 
-  const [isLoading, setIsLoading] = useState(true); // Start with loading true
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [needsQuestion, setNeedsQuestion] = useState(false);
-  const [isDebateEnded, setIsDebateEnded] = useState(false); // Based on fetched data or closing args
-  const [isJudged, setIsJudged] = useState(false); // Based on fetched data or judge action
-
+  const [isDebateEnded, setIsDebateEnded] = useState(false);
+  const [isJudged, setIsJudged] = useState(false);
+  
   const debateLogRef = useRef(null);
-  const initialLoadCompleteRef = useRef(false); // Tracks if initial data load has occurred
+  const initialLoadDoneRef = useRef(false); // Tracks if initial data load logic has run
 
-  // Load voices
+  // Load voices (runs once on mount)
   useEffect(() => {
-    loadVoices();
+    loadVoices(); // Initial attempt
     if (speechSynthesis.onvoiceschanged !== undefined) {
         speechSynthesis.onvoiceschanged = loadVoices;
     }
-    const voiceLoadInterval = setInterval(() => {
+    const voiceLoadInterval = setInterval(() => { // Fallback polling
         if (voices.length === 0) loadVoices();
         else clearInterval(voiceLoadInterval);
     }, 500);
     return () => {
         clearInterval(voiceLoadInterval);
         if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = null;
-        synth.cancel();
+        synth.cancel(); // Important: Cancel any speech when component unmounts
     };
   }, []);
 
-  const updateStateFromFetchedData = useCallback((data) => {
+
+  const updateStateFromApiData = useCallback((data, isInitialSetup = false) => {
     setTopic(data.topic || '');
     setDebateLog(data.logs || []);
     setQuestionsList(data.questions || []);
     setWinner(data.winner || null);
 
-    // Determine UI states from fetched data
     const hasWinner = !!data.winner;
     setIsJudged(hasWinner);
-
-    // A simple heuristic for "ended": if there's a winner, or if closing arguments are prominent in logs
     const hasClosingArgs = data.logs?.some(log => log.response_type === 'closing_argument');
     setIsDebateEnded(hasWinner || hasClosingArgs || false);
     
-    setNeedsQuestion(!hasWinner && !hasClosingArgs); // Needs question if not judged and not at closing yet
+    // Only set needsQuestion to true during initial setup if not ended/judged
+    // For subsequent calls, the specific handler (like handleProcessTurn) will manage needsQuestion.
+    if (isInitialSetup) {
+        setNeedsQuestion(!hasWinner && !hasClosingArgs);
+    }
     setIsLoading(false);
-  }, []);
+  }, []); // Empty deps as setters are stable
 
 
   // Effect for Initial Data Load (from navigation state or API)
   useEffect(() => {
-    const loadInitialData = async () => {
-      if (initialLoadCompleteRef.current) return; // Ensure this runs only once
+    const loadInitialDebateData = async () => {
+      // Ensure this entire block runs only once per component mount or debateId change
+      if (initialLoadDoneRef.current && location.state === null) return; // Allow re-eval if location.state appears later (unlikely)
 
       setIsLoading(true);
-      setError(null);
-      
-      if (location.state?.initialTopicData) { // Data passed from HomePage after /start_debate
-        // console.log("Using initial data from HomePage:", location.state.initialTopicData);
-        updateStateFromFetchedData(location.state.initialTopicData);
-        initialLoadCompleteRef.current = true;
+      setError(null); // Clear previous errors on new load attempt
 
-        // Speak the opening statements from the logs provided by /start_debate
-        const openingLogs = location.state.initialTopicData.logs || [];
+      if (location.state?.initialTopicData) {
+        // console.log("DebatePage: Using initial data passed from HomePage via location.state");
+        const initialData = location.state.initialTopicData;
+        updateStateFromApiData(initialData, true); // true for isInitialSetup
+        initialLoadDoneRef.current = true;
+
+        // Speak the opening statements from the logs that were part of initialTopicData
+        const openingLogs = initialData.logs || [];
         if (openingLogs.length > 0) {
+            // console.log("DebatePage: Speaking opening statements...", openingLogs);
             for (const logEntry of openingLogs) {
-                await speak(logEntry.text, logEntry.speaker);
+                if (logEntry && logEntry.text) { // Ensure logEntry and text exist
+                    await speak(logEntry.text, logEntry.speaker);
+                }
             }
         }
-        setNeedsQuestion(true); // After opening, it needs a question
-
+        // No need to set isLoading(false) here, updateStateFromApiData does it.
       } else if (debateId) { // Direct load or reload, fetch from /get_debate
-        // console.log(`Fetching data for debate ID: ${debateId}`);
+        if (initialLoadDoneRef.current) return; // Already loaded or tried loading
+        // console.log(`DebatePage: No location.state.initialTopicData. Fetching data for debate ID: ${debateId}`);
         try {
           const response = await fetch(`${API_URL}/get_debate?debate_id=${debateId}`);
           if (!response.ok) {
-            const errData = await response.json();
+            const errData = await response.json().catch(() => ({}));
             throw new Error(errData.error || `HTTP error! Status: ${response.status}`);
           }
           const data = await response.json();
-          updateStateFromFetchedData(data);
-          initialLoadCompleteRef.current = true;
-          // On direct load, we typically don't replay all speech.
-          // UI is updated, user can proceed.
+          updateStateFromApiData(data, true); // true for isInitialSetup
+          initialLoadDoneRef.current = true;
+          // On direct load, we display logs but don't auto-speak the entire history.
         } catch (err) {
-          console.error("Failed to fetch debate data:", err);
+          console.error("DebatePage: Failed to fetch debate data on direct load:", err);
           setError(err.message || "Failed to load debate. Please try again or start a new one.");
           setIsLoading(false);
+          initialLoadDoneRef.current = true; // Mark as attempted even if failed
         }
       } else {
-        setError("No debate ID found. Cannot load debate.");
+        setError("No debate ID found and no initial data. Cannot load debate.");
         setIsLoading(false);
+        initialLoadDoneRef.current = true; // Mark as attempted
       }
     };
     
-    // Delay slightly for voices, and ensure it runs only once
-    const timeoutId = setTimeout(loadInitialData, 100); 
+    // Using a small timeout to allow voice loading mechanisms to potentially fire first
+    const timeoutId = setTimeout(loadInitialDebateData, 100);
     return () => clearTimeout(timeoutId);
 
-  }, [debateId, location.state, updateStateFromFetchedData]);
+  }, [debateId, location.state, updateStateFromApiData]); // updateStateFromApiData is stable due to useCallback
 
 
   useEffect(() => {
@@ -186,71 +201,60 @@ function DebatePage() {
     }
   }, [debateLog]);
 
-  const handleApiCall = async (endpoint, payload, method = 'POST') => {
-    setIsLoading(true);
+
+  const handleApiCall = async (endpoint, payload) => {
+    setIsLoading(true); // Set loading true at the start of any API action
     setError(null);
+    // Note: `speak` function now handles synth.cancel() if it's already speaking.
+    // Avoid a general synth.cancel() here as it might cut off intended final speech from a previous step.
 
     try {
-      const requestOptions = {
-        method: method,
+      const response = await fetch(`${API_URL}/${endpoint}`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-      };
-      if (method === 'POST') {
-        requestOptions.body = JSON.stringify({ ...payload, debate_id: debateId });
-      }
-      
-      const fullUrl = method === 'GET' ? `${API_URL}/${endpoint}?${new URLSearchParams(payload)}` : `${API_URL}/${endpoint}`;
-      const response = await fetch(fullUrl, requestOptions);
-
+        body: JSON.stringify({ ...payload, debate_id: debateId }),
+      });
       if (!response.ok) {
-        const errData = await response.json();
+        const errData = await response.json().catch(() => ({}));
         throw new Error(errData.error || `HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
       
-      // Update logs and questions from the API response
-      setDebateLog(data.logs || []);
-      setQuestionsList(data.questions || []);
-      if (data.topic) setTopic(data.topic); // Update topic if backend changes it (e.g. if it was null)
-      if (data.winner) setWinner(data.winner);
+      // Update main state from the backend's source of truth
+      updateStateFromApiData(data); // isInitialSetup is false here
 
-
-      return data; // Return data for further processing (like speaking parts)
+      return data; // Return data for speaking the *new* parts
     } catch (err) {
       console.error(`Error calling ${endpoint}:`, err);
       setError(err.message || `Failed to process request on ${endpoint}.`);
       setIsLoading(false); // Ensure loading is false on error
-      throw err;
+      throw err; // Re-throw for the specific handler to catch if needed
     }
-    // setIsLoading will be set to false by the calling function after speech
+    // setIsLoading(false) will be handled by the specific calling function after speech
   };
 
   const handleProcessTurn = async (e) => {
     e.preventDefault();
     if (!currentInput.trim()) return;
-    setNeedsQuestion(false);
     const question = currentInput;
     setCurrentInput('');
+    setNeedsQuestion(false); // Submitted a question
 
     try {
-      // The backend /process_turn already adds all relevant entries to its logs
-      // The response will contain these updated logs, and specific fields for the new spoken parts.
       const data = await handleApiCall('process_turn', { question });
+      // `updateStateFromApiData` (called within `handleApiCall`) has already updated the debateLog
+      // Now, speak the new parts of this interaction
+      await speak(`Next question: ${data.question}`, "Moderator"); // data.question is the user's input
+      await speak(data.pro_side_response, "pro");
+      await speak(data.con_side_response, "con");
+      await speak(data.pro_side_rebuttal, "pro");
+      await speak(data.con_side_rebuttal, "con");
       
-      // Speak the new parts of the interaction
-      // Assuming backend returns distinct fields for what was just generated
-      await speak(`Next question: ${data.question}`, "Moderator"); // `data.question` is what user submitted
-      await speak(data.pro_side_response, "Pro");
-      await speak(data.con_side_response, "Con");
-      await speak(data.pro_side_rebuttal, "Pro (Rebuttal)");
-      await speak(data.con_side_rebuttal, "Con (Rebuttal)");
-      
-      setNeedsQuestion(true);
+      setNeedsQuestion(true); // Ready for a new question
     } catch (err) {
-      // Error already set by handleApiCall
-      setNeedsQuestion(true); // Allow user to try again if API call failed
+      setNeedsQuestion(true); // Allow user to try again even if API call failed
     } finally {
-        setIsLoading(false);
+        setIsLoading(false); // Final loading state management
     }
   };
 
@@ -258,15 +262,13 @@ function DebatePage() {
     setNeedsQuestion(false);
     try {
       const data = await handleApiCall('closing_arguments', {});
-      
       await speak("We will now hear the closing arguments.", "Moderator");
       await speak(data.pro_closing, "Pro");
       await speak(data.con_closing, "Con");
       await speak("This concludes our debate. We will now await judgment.", "Moderator");
-      
-      setIsDebateEnded(true);
+      // updateStateFromApiData already set isDebateEnded if logs reflect it
     } catch (err) {
-      // Error handled by handleApiCall
+      // Error handled
     } finally {
         setIsLoading(false);
     }
@@ -277,13 +279,9 @@ function DebatePage() {
       const data = await handleApiCall('judge_debate', {});
       const winnerText = data.judgment?.toUpperCase() || "UNDEFINED";
       await speak(`After careful consideration, the winner of this debate is... the ${winnerText} side!`, "Judge");
-      
-      setIsJudged(true);
-      setWinner(data.judgment); // Ensure winner state is updated
-      setNeedsQuestion(false);
-      setIsDebateEnded(true); // Judging implies debate ended
+      // updateStateFromApiData already set isJudged & winner
     } catch (err) {
-      // Error handled by handleApiCall
+      // Error handled
     } finally {
         setIsLoading(false);
     }
@@ -291,12 +289,12 @@ function DebatePage() {
 
   const resetAndGoHome = () => {
     synth.cancel();
-    initialLoadCompleteRef.current = false; // Reset for a fully fresh load if they come back
+    initialLoadDoneRef.current = false; // Reset for a fully fresh load if they come back
     navigate('/');
   }
 
   // Render Logic
-  if (isLoading && !initialLoadCompleteRef.current && debateLog.length === 0) { // Show full page loading only on very initial load
+  if (isLoading && !initialLoadDoneRef.current) {
     return <div className="App-main loading-indicator" style={{textAlign: 'center', padding: '2rem', fontSize: '1.5em'}}>Loading Debate Details...</div>;
   }
 
@@ -324,13 +322,12 @@ function DebatePage() {
             <h2>Debate Log</h2>
             <div className="debate-log" ref={debateLogRef}>
             {debateLog.map((entry, index) => (
-                <div key={`${index}-${entry.speaker}-${entry.text?.substring(0,10)}`} /* More robust key */
+                <div key={`${debateId}-${index}-${entry.speaker}-${entry.text?.slice(0,10)}`} /* More robust key */
                      className={`log-entry ${entry.speaker?.toLowerCase().replace(/[^a-z0-9]/g, '')}`}>
                     <strong>{entry.speaker}:</strong>
                     <p>{entry.text}</p>
                 </div>
             ))}
-            {/* More subtle loading indicator for subsequent actions */}
             {isLoading && <div className="loading-indicator-inline">Processing... 🤔</div>} 
             {isJudged && winner && <div className="log-entry judge"><strong>--- FINAL VERDICT: {winner.toUpperCase()} WINS ---</strong></div>}
             </div>

@@ -11,6 +11,7 @@ from src.database.database import (
     create_item,
     get_item_by_id,
     update_item,
+    get_items_by_filters,
 )
 import src.database.models as db_models
 
@@ -26,6 +27,8 @@ from .schemas import (
     JudgeDebateRequest,
     GetDebateRequest,
     GetDebateResponse,
+    GetUserDebatesResponse,
+    GetUserDebatesRequest,
 )
 from aiohttp_apispec import (
     docs,
@@ -476,6 +479,49 @@ async def get_debate(request):
             "logs": debate.logs,
             "questions": debate.questions,
             "winner": debate.winner,
+        }
+    )
+    return web.json_response(response_data, status=200)
+
+
+@docs(
+    tags=["get user debates"],
+    summary="Retrieves all debates for a user",
+    description="Retrieves all debates associated with a specific user.",
+    responses={
+        200: {
+            "schema": GetUserDebatesResponse,
+            "description": "Success response with list of debates",
+        },
+        404: {"description": "User not found"},
+        422: {"description": "Validation error"},
+    },
+)
+@querystring_schema(GetUserDebatesRequest)
+async def get_user_debates(request):
+    query_params = request["querystring"]
+    user_id: int = query_params["user_id"]
+    async with async_session() as session:
+        debates: list[db_models.Debate] = await get_items_by_filters(
+            session,
+            db_models.Debate,
+            filters={"user_id": user_id},
+        )
+    if not debates:
+        return web.json_response({"debates": []})
+    response_data = GetUserDebatesResponse().dump(
+        {
+            "debates": [
+                {
+                    "id": debate.id,
+                    "user_id": debate.user_id,
+                    "topic": debate.topic,
+                    "questions": debate.questions,
+                    "logs": debate.logs,
+                    "winner": debate.winner,
+                }
+                for debate in debates
+            ]
         }
     )
     return web.json_response(response_data, status=200)

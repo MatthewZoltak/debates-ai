@@ -1,9 +1,8 @@
-// src/components/HomePage.js
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import '../App.css'; // Assuming App.css is in src/
+import '../App.css';
 
-const API_URL = 'http://127.0.0.1:5000'; // Or your aiohttp URL, e.g., http://127.0.0.1:8080
+const API_URL = 'http://127.0.0.1:5000'; 
 
 function HomePage() {
   const [topic, setTopic] = useState('');
@@ -39,12 +38,10 @@ function HomePage() {
       }
 
       // Navigate to the debate page, passing initial data via route state
-      navigate(`/debate/${data.debate_id}`, { 
-        state: { 
-          initialTopic: data.topic, 
-          proInitial: data.pro_initial,
-          conInitial: data.con_initial,
-        } 
+      navigate(`/debate/${data.debate_id}`, {
+        state: {
+          initialTopicData: data // 'data' is the full JSON response from your /start_debate backend
+        }
       });
 
     } catch (err) {
