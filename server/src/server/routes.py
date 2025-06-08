@@ -4,7 +4,7 @@ from .views import (
     closing_arguments_view,
     judge_debate_view,
     get_debate,
-    get_user_debates
+    get_user_debates,
 )
 
 

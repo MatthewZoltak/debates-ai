@@ -93,6 +93,7 @@ class JudgeDebateResponse(Schema):
     judgment = fields.String(required=True)
     logs = fields.List(fields.Nested(DebateLog), required=True)
     questions = fields.List(fields.String, required=True)
+    winner = fields.String(required=True, allow_none=True)
 
 
 class GetDebateRequest(Schema):
@@ -113,4 +114,8 @@ class GetUserDebatesResponse(Schema):
 
 
 class GetUserDebatesRequest(Schema):
-    user_id = fields.Integer(required=True)
+    user_id = fields.Integer(required=False, allow_none=True, missing=None)
+
+
+class SignupRequest(Schema):
+    id = fields.String(required=True)

@@ -7,6 +7,7 @@ from google import genai  # For initializing client in state
 import logging
 from src.server.routes import setup_routes  # Import setup_routes from the same package
 from aiohttp_apispec import validation_middleware, setup_aiohttp_apispec
+from src.server.auth import auth_middleware
 
 dotenv.load_dotenv()
 
@@ -78,6 +79,7 @@ async def create_app():
 
     # Add validation middleware
     app.middlewares.append(validation_middleware)
+    app.middlewares.append(auth_middleware)
 
     setup_aiohttp_apispec(
         app=app,

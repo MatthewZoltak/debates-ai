@@ -1,67 +1,96 @@
-/* src/components/Navbar.css */
+/* src/components/Navbar.css or App.css */
 .navbar {
-    background: linear-gradient(90deg, rgb(244, 235, 235) 0%, rgb(244, 235, 235) 100%);
-    height: 70px; /* Reduced height */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 1.1rem; /* Slightly reduced font size */
-    position: sticky;
-    top: 0;
-    z-index: 999;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-  }
-  
-  .navbar-container {
-    display: flex;
-    justify-content: space-between;
-    height: 70px; /* Match navbar height */
-    z-index: 1;
-    width: 100%;
-    max-width: 1300px;
-    margin: 0 auto;
-    padding: 0 25px; /* Reduced padding */
-  }
-  
-  .navbar-logo {
-    color: #000000;
-    justify-self: start;
-    cursor: pointer;
-    text-decoration: none;
-    font-size: 1.8rem; /* Slightly reduced font size */
-    display: flex;
-    align-items: center;
-    font-weight: bold;
-  }
-  
-  .nav-menu {
-    display: flex;
-    align-items: center;
-    list-style: none;
-    text-align: center;
-  }
-  
-  .nav-item {
-    height: 70px; /* Match navbar height */
-  }
-  
-  .nav-links {
-    color: #000000;
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-    padding: 0.5rem 1rem;
-    height: 100%;
-    transition: all 0.2s ease-out;
-  }
-  
-  .nav-links:hover {
-    color: #4CAF50;
-    border-bottom: 3px solid #4CAF50;
-  }
-  
-  .nav-links.activated {
-    color: #4CAF50;
-    border-bottom: 3px solid #4CAF50;
-    font-weight: bold;
-  }
+  background-color: #2c3e50; /* Dark blue-grey */
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between; /* Distributes space */
+  color: white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  height: 60px; /* Fixed height */
+}
+
+.navbar-container {
+  display: flex;
+  align-items: center;
+  width: 100%; /* Ensure it spans the navbar */
+}
+
+.navbar-logo {
+  color: white;
+  text-decoration: none;
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-right: 2rem; /* Space between logo and nav menu */
+}
+
+.nav-menu {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  flex-grow: 1; /* Allows nav-menu to take available space */
+}
+
+.nav-item {
+  margin-right: 1.5rem;
+}
+
+.nav-links {
+  color: #ecf0f1; /* Light grey for links */
+  text-decoration: none;
+  padding: 0.5rem 0;
+  transition: color 0.3s ease;
+}
+
+.nav-links:hover,
+.nav-links.activated {
+  color: #3498db; /* Bright blue for hover/active */
+  border-bottom: 2px solid #3498db;
+}
+
+.navbar-auth-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem; /* Spacing between auth elements */
+  margin-left: auto; /* Pushes auth buttons to the far right */
+}
+
+.nav-button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.3s ease;
+  color: white;
+}
+
+.login-button {
+  background-color: #2980b9; /* Blue */
+}
+.login-button:hover {
+  background-color: #3498db;
+}
+
+.logout-button {
+  background-color: #c0392b; /* Red */
+}
+.logout-button:hover {
+  background-color: #e74c3c;
+}
+
+.navbar-user-pic {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  margin-right: 0.5rem;
+  object-fit: cover;
+  border: 1px solid #fff;
+}
+
+.user-greeting {
+  font-size: 0.9em;
+  color: #bdc3c7; /* Lighter text for greeting */
+}

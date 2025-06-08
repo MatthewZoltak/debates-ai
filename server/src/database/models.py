@@ -11,6 +11,7 @@ class User(Base):
     __tablename__ = "user"
 
     id = Column(Integer, primary_key=True)
+    auth_id = Column(String, unique=True, nullable=False)
     name = Column(String)
     debates = relationship("Debate", back_populates="user")
 
@@ -27,5 +28,8 @@ class Debate(Base):
 
     current_turn = Column(String, nullable=False, default="pro")  # Default turn
     logs = Column(JSON, default=list)  # Default to an empty list for logs
+
+    pro_chat_history = Column(JSON, default=list)  # Default to an empty list
+    con_chat_history = Column(JSON, default=list)  # Default to an empty list
 
     winner = Column(String, nullable=True)  # Winner can be null initially

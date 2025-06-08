@@ -37,7 +37,6 @@ from aiohttp_apispec import (
 )
 
 logger = logging.getLogger(__name__)
-USER_ID = 1
 
 
 @docs(
@@ -56,7 +55,7 @@ USER_ID = 1
 @request_schema(StartDebateRequest)
 async def start_debate_view(request):
     logger.info("Starting debate...")
-    debate_state = request.app["debate_state"]
+    user_id = request["user_id"]
     api_key = request.app["api_key"]
     text_model_name = request.app["text_model_name"]
     max_sentences = request.app["max_sentences"]
@@ -66,34 +65,29 @@ async def start_debate_view(request):
     debate_logs = []
 
     # Re-initialize clients and chats
-    debate_state["clients"]["pro"]["client"] = genai.Client(api_key=api_key)
-    debate_state["clients"]["con"]["client"] = genai.Client(api_key=api_key)
-    debate_state["clients"]["moderator"]["client"] = genai.Client(api_key=api_key)
+    pro_client = genai.Client(api_key=api_key)
+    con_client = genai.Client(api_key=api_key)
 
     initial_prompt = f"Debate topic: {topic}. Pro side will argue in favor, Con side will argue against. I, the moderator will manage the debate."
-    pro_client = debate_state["clients"]["pro"]["client"]
-    con_client = debate_state["clients"]["con"]["client"]
 
     pro_side_chat = start_chat(
         pro_client,
         system_instructions=f"{initial_prompt} You are on the pro side of a debate. Your goal is to argue for the topic. Be logical and persuasive. Respond to the opposing side's arguments. Only ever respond with {max_sentences} sentences. Do not include any other information.",
         model=text_model_name,
     )
-    debate_state["clients"]["pro"]["chat"] = pro_side_chat
     con_side_chat = start_chat(
         con_client,
         system_instructions=f"{initial_prompt} You are on the con side of a debate. Your goal is to argue against the topic. Be logical and persuasive. Respond to the opposing side's arguments. Only ever respond with {max_sentences} sentences. Do not include any other information.",
         model=text_model_name,
     )
-    debate_state["clients"]["con"]["chat"] = con_side_chat
 
     # These genai calls are synchronous. In a high-performance async app,
     # you'd want async equivalents or run them in a thread pool executor.
-    pro_side_response = pro_side_chat.send_message(
-        f"Opening statement for the debate topic: {topic}"
+    pro_side_response = send_chat_message(
+        pro_side_chat, f"Opening statement for the debate topic: {topic}"
     ).text
-    con_side_response = con_side_chat.send_message(
-        f"Opening statement for the debate topic: {topic}"
+    con_side_response = send_chat_message(
+        con_side_chat, f"Opening statement for the debate topic: {topic}"
     ).text
 
     debate_logs.append(
@@ -119,9 +113,21 @@ async def start_debate_view(request):
     )
     async with async_session() as session:
         # Save the debate topic to the database
+        pro_side_chat_history = [
+            content.dict() for content in pro_side_chat.get_history()
+        ]
+        con_side_chat_history = [
+            content.dict() for content in con_side_chat.get_history()
+        ]
         debate: db_models.Debate = await create_item(
             session,
-            {"topic": topic, "user_id": USER_ID, "logs": debate_logs},
+            {
+                "topic": topic,
+                "user_id": user_id,
+                "logs": debate_logs,
+                "pro_chat_history": pro_side_chat_history,
+                "con_chat_history": con_side_chat_history,
+            },
             db_models.Debate,
         )
         logger.info(f"Debate topic '{topic}' saved to database.")
@@ -157,9 +163,9 @@ async def start_debate_view(request):
 )
 @request_schema(ProcessTurnRequest)
 async def process_turn_view(request):
-    debate_state = request.app["debate_state"]
     max_sentences = request.app["max_sentences"]
-
+    api_key = request.app["api_key"]
+    text_model_name = request.app["text_model_name"]
     data = request["data"]
     question = data["question"]
     debate_id = data["debate_id"]
@@ -172,8 +178,20 @@ async def process_turn_view(request):
     if not debate:
         return web.json_response({"error": "Debate not found"}, status=404)
 
-    pro_client_chat = debate_state["clients"]["pro"]["chat"]
-    con_client_chat = debate_state["clients"]["con"]["chat"]
+    pro_client = genai.Client(api_key=api_key)
+    con_client = genai.Client(api_key=api_key)
+    pro_client_chat = start_chat(
+        pro_client,
+        system_instructions=f"{debate.topic} You are on the pro side of a debate. Your goal is to argue for the topic. Be logical and persuasive. Respond to the opposing side's arguments. Only ever respond with {max_sentences} sentences. Do not include any other information.",
+        model=text_model_name,
+        history=debate.pro_chat_history or [],
+    )
+    con_client_chat = start_chat(
+        con_client,
+        system_instructions=f"{debate.topic} You are on the con side of a debate. Your goal is to argue against the topic. Be logical and persuasive. Respond to the opposing side's arguments. Only ever respond with {max_sentences} sentences. Do not include any other information.",
+        model=text_model_name,
+        history=debate.con_chat_history or [],
+    )
 
     if not pro_client_chat or not con_client_chat:
         return web.json_response(
@@ -193,14 +211,14 @@ async def process_turn_view(request):
     debate_logs.append(
         {
             "speaker": "moderator",
-            "response_type": "intitial_question_response",  # Note: "initial" was misspelled
+            "response_type": "intitial_question_response",
             "text": question,
         }
     )
     debate_logs.append(
         {
             "speaker": "pro",
-            "response_type": "intitial_question_response",  # Note: "initial" was misspelled
+            "response_type": "intitial_question_response",
             "text": pro_side_response,
         }
     )
@@ -208,7 +226,7 @@ async def process_turn_view(request):
     debate_logs.append(
         {
             "speaker": "con",
-            "response_type": "intitial_question_response",  # Note: "initial" was misspelled
+            "response_type": "intitial_question_response",
             "text": con_side_response,
         }
     )
@@ -239,7 +257,14 @@ async def process_turn_view(request):
     questions = debate.questions
     questions.append(question)
     async with async_session() as session:
-        update_dict = {"logs": debate.logs, "questions": questions}
+        pro_chat_history = [content.dict() for content in pro_client_chat.get_history()]
+        con_chat_history = [content.dict() for content in con_client_chat.get_history()]
+        update_dict = {
+            "logs": debate.logs,
+            "questions": questions,
+            "pro_chat_history": pro_chat_history,
+            "con_chat_history": con_chat_history,
+        }
         await update_item(session, debate.id, update_dict, db_models.Debate)
 
     response_data = ProcessTurnResponse().dump(
@@ -273,7 +298,8 @@ async def process_turn_view(request):
 )
 @request_schema(ClosingArgmentRequest)
 async def closing_arguments_view(request):
-    debate_state = request.app["debate_state"]
+    api_key = request.app["api_key"]
+    text_model_name = request.app["text_model_name"]
     max_sentences = request.app["max_sentences"]
 
     data = request["data"]
@@ -288,8 +314,20 @@ async def closing_arguments_view(request):
     if not debate.topic:
         return web.json_response({"error": "Debate not started"}, status=400)
 
-    pro_client_chat = debate_state["clients"]["pro"]["chat"]
-    con_client_chat = debate_state["clients"]["con"]["chat"]
+    pro_client = genai.Client(api_key=api_key)
+    con_client = genai.Client(api_key=api_key)
+    pro_client_chat = start_chat(
+        pro_client,
+        system_instructions=f"{debate.topic} You are on the pro side of a debate. Your goal is to argue for the topic. Be logical and persuasive. Respond to the opposing side's arguments. Only ever respond with {max_sentences} sentences. Do not include any other information.",
+        model=text_model_name,
+        history=debate.pro_chat_history or [],
+    )
+    con_client_chat = start_chat(
+        con_client,
+        system_instructions=f"{debate.topic} You are on the con side of a debate. Your goal is to argue against the topic. Be logical and persuasive. Respond to the opposing side's arguments. Only ever respond with {max_sentences} sentences. Do not include any other information.",
+        model=text_model_name,
+        history=debate.con_chat_history or [],
+    )
 
     if not pro_client_chat or not con_client_chat:
         return web.json_response(
@@ -330,7 +368,18 @@ async def closing_arguments_view(request):
     )
     # Update the debate logs in the database
     async with async_session() as session:
-        await update_item(session, debate.id, {"logs": debate.logs}, db_models.Debate)
+        pro_chat_history = [content.dict() for content in pro_client_chat.get_history()]
+        con_chat_history = [content.dict() for content in con_client_chat.get_history()]
+        await update_item(
+            session,
+            debate.id,
+            {
+                "logs": debate.logs,
+                "pro_chat_history": pro_chat_history,
+                "con_chat_history": con_chat_history,
+            },
+            db_models.Debate,
+        )
     logger.info(
         f"Closing arguments processed for debate ID {debate_id}: Pro: {pro_closing}, Con: {con_closing}"
     )
@@ -362,7 +411,6 @@ async def closing_arguments_view(request):
 )
 @request_schema(JudgeDebateRequest)
 async def judge_debate_view(request):
-    debate_state = request.app["debate_state"]
     api_key = request.app["api_key"]  # Moderator client uses this directly if re-init
     data = request["data"]
     debate_id = data["debate_id"]
@@ -379,13 +427,8 @@ async def judge_debate_view(request):
         return web.json_response({"error": "No debate logs found"}, status=400)
 
     # Ensure moderator client is available
-    moderator_client = debate_state["clients"]["moderator"]["client"]
-    if not moderator_client:
-        # Re-initialize if it somehow got lost, though it should persist if debate_state does
-        moderator_client = genai.Client(api_key=api_key)
-        debate_state["clients"]["moderator"]["client"] = moderator_client
-
-    judgment_prompt = f"Based on the debate about {debate_state['topic']}, provide a final judgment on who won the debate. Consider all arguments and rebuttals. Give one word answer: 'pro' or 'con'. Here is the transcript of the debate: {debate_state['debate_log']}"
+    moderator_client = genai.Client(api_key=api_key)
+    judgment_prompt = f"Based on the debate about {debate.topic}, provide a final judgment on who won the debate. Consider all arguments and rebuttals. Give one word answer: 'pro' or 'con'. Here is the transcript of the debate: {debate.logs}"
 
     judgment = (
         generate_text_content(
@@ -443,6 +486,7 @@ async def judge_debate_view(request):
             "judgment": judgment,
             "logs": debate.logs,
             "questions": debate.questions,
+            "winner": judgment,
         }
     )
 
@@ -499,8 +543,7 @@ async def get_debate(request):
 )
 @querystring_schema(GetUserDebatesRequest)
 async def get_user_debates(request):
-    query_params = request["querystring"]
-    user_id: int = query_params["user_id"]
+    user_id = request["user_id"]
     async with async_session() as session:
         debates: list[db_models.Debate] = await get_items_by_filters(
             session,
