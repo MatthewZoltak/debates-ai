@@ -154,7 +154,7 @@ async def auth_middleware(request: web.Request, handler):
     ]
 
     # Allow OPTIONS requests to pass through for CORS preflight
-    if request.method == "OPTIONS":
+    if request.method in ("OPTIONS", "HEAD"):
         return await handler(request)
 
     # Check if the current path is public
