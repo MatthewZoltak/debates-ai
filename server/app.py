@@ -11,6 +11,9 @@ from src.server.auth import auth_middleware
 
 dotenv.load_dotenv()
 
+SERVER_HOST = os.environ.get("SERVER_HOST", "0.0.0.0")
+SERVER_PORT = int(os.environ.get("SERVER_PORT", 5000))
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -94,5 +97,5 @@ async def create_app():
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     app_instance = loop.run_until_complete(create_app())
-    logger.info("Starting Debate AI Backend on http://localhost:5000")
-    web.run_app(app_instance, host="localhost", port=5000)
+    logger.info(f"Starting Debate AI Backend on http://{SERVER_HOST}:{SERVER_PORT}")
+    web.run_app(app_instance, host=SERVER_HOST, port=SERVER_PORT)
