@@ -5,8 +5,6 @@ import { useAuth0 } from '@auth0/auth0-react'; // Import useAuth0
 import { authenticatedFetch } from '../services/api'; // Import your helper
 import '../App.css';
 
-// API_URL is handled by authenticatedFetch
-// const API_URL = 'http://127.0.0.1:5000';
 
 function HomePage() {
   const [topic, setTopic] = useState('');

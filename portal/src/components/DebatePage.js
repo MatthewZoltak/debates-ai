@@ -44,7 +44,6 @@ const proceedWithSpeech = (text, speakerRole, resolve, reject) => {
         console.error('SpeechSynthesisUtterance.onerror for text "' + text.substring(0,30) + '...":', event);
         reject(event); 
     };
-    // console.log(`Speaking: "${text.substring(0,30)}..." with role: ${speakerRole}`);
     let selectedVoice = null;
     if (voices.length > 0) {
         const lowerSpeakerRole = speakerRole.toLowerCase();
@@ -110,10 +109,8 @@ function DebatePage() {
     setWinner(data.winner || null);
 
     const hasWinner = !!data.winner;
-    console.log(hasWinner)
     setIsJudged(hasWinner);
     
-    console.log(data.logs)
     const hasClosingArgs = data.logs?.some(
       log => log.speaker === 'moderator' && log.text.toLowerCase().includes('closing argument')
     ); 

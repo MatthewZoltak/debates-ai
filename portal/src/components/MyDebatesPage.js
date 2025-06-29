@@ -6,8 +6,6 @@ import { authenticatedFetch } from '../services/api'; // Import your helper
 import '../App.css';
 import './MyDebatesPage.css';
 
-// API_URL is now handled by authenticatedFetch, but you might keep it for non-auth calls if any.
-// const API_URL = 'http://127.0.0.1:5000';
 
 function MyDebatesPage() {
   const [debatesList, setDebatesList] = useState([]);

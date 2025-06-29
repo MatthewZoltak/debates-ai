@@ -64,7 +64,7 @@ async def create_app():
     cors = aiohttp_cors.setup(
         app,
         defaults={
-            "http://localhost:3000": aiohttp_cors.ResourceOptions(
+            os.environ.get("CLIENT_URL"): aiohttp_cors.ResourceOptions(
                 allow_credentials=True,
                 expose_headers="*",
                 allow_headers="*",
@@ -95,4 +95,4 @@ if __name__ == "__main__":
     loop = asyncio.get_event_loop()
     app_instance = loop.run_until_complete(create_app())
     logger.info("Starting Debate AI Backend on http://localhost:5000")
-    web.run_app(app_instance, host="localhost", port=5000)  # Flask default port is 5000
+    web.run_app(app_instance, host="localhost", port=5000)

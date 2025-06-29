@@ -1,5 +1,5 @@
 // src/services/api.js
-const API_BASE_URL = 'http://127.0.0.1:5000'; // Your backend API URL
+const API_BASE_URL = process.env.REACT_APP_BACKEND_BASE_URL;
 
 /**
  * Makes an authenticated API request.
