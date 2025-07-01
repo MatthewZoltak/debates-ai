@@ -545,10 +545,11 @@ async def get_debate(request):
 async def get_user_debates(request):
     user_id = request["user_id"]
     async with async_session() as session:
+        filters = {"user_id": user_id}
         debates: list[db_models.Debate] = await get_items_by_filters(
             session,
             db_models.Debate,
-            filters={"user_id": user_id},
+            **filters,
         )
     if not debates:
         return web.json_response({"debates": []})

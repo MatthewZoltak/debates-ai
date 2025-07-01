@@ -202,10 +202,11 @@ async def auth_middleware(request: web.Request, handler):
             )
         # check if user exists in the database
         async with async_session() as session:
+            filters = {"auth_id": user_id}
             users: list[db_models.User] = await get_items_by_filters(
                 session,
                 db_models.User,
-                filters={"auth_id": user_id},
+                **filters,
             )
             if not users:
                 # create a new user if not exists
