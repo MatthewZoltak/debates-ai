@@ -2,7 +2,6 @@ from marshmallow import Schema, fields
 from enum import Enum
 
 
-# add enum for speaker types
 class SpeakerType(Enum):
     PRO = "pro"
     CON = "con"
