@@ -1,11 +1,10 @@
-# src/server/auth.py
 import jwt
 import aiohttp
 import json
 import os
 from aiohttp import web
 import logging
-import re  # For path matching
+import re
 from src.database.database import async_session, get_items_by_filters, create_item
 import src.database.models as db_models
 
