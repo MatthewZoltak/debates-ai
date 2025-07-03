@@ -1,5 +1,5 @@
 from aiohttp import web
-from google import genai  # Assuming genai client calls are synchronous
+from google import genai
 import logging
 from .utils import (
     start_chat,
@@ -54,7 +54,6 @@ logger = logging.getLogger(__name__)
 )
 @request_schema(StartDebateRequest)
 async def start_debate_view(request):
-    logger.info("Starting debate...")
     user_id = request["user_id"]
     api_key = request.app["api_key"]
     text_model_name = request.app["text_model_name"]
@@ -64,7 +63,6 @@ async def start_debate_view(request):
     topic = data["topic"]
     debate_logs = []
 
-    # Re-initialize clients and chats
     pro_client = genai.Client(api_key=api_key)
     con_client = genai.Client(api_key=api_key)
 
@@ -81,8 +79,6 @@ async def start_debate_view(request):
         model=text_model_name,
     )
 
-    # These genai calls are synchronous. In a high-performance async app,
-    # you'd want async equivalents or run them in a thread pool executor.
     pro_side_response = send_chat_message(
         pro_side_chat, f"Opening statement for the debate topic: {topic}"
     ).text
@@ -112,7 +108,6 @@ async def start_debate_view(request):
         }
     )
     async with async_session() as session:
-        # Save the debate topic to the database
         pro_side_chat_history = [
             content.dict() for content in pro_side_chat.get_history()
         ]
@@ -130,7 +125,6 @@ async def start_debate_view(request):
             },
             db_models.Debate,
         )
-        logger.info(f"Debate topic '{topic}' saved to database.")
 
     response_data = StartDebateResponse().dump(
         {
@@ -171,7 +165,6 @@ async def process_turn_view(request):
     debate_id = data["debate_id"]
 
     async with async_session() as session:
-        # Check if the debate exists in the database
         debate: db_models.Debate = await get_item_by_id(
             session, debate_id, db_models.Debate
         )
@@ -222,7 +215,6 @@ async def process_turn_view(request):
             "text": pro_side_response,
         }
     )
-    # Added this missing log for con side's initial response to the question
     debate_logs.append(
         {
             "speaker": "con",
@@ -252,7 +244,6 @@ async def process_turn_view(request):
             "text": con_side_rebuttal,
         }
     )
-    # Update the debate logs in the database
     debate.logs = debate_logs
     questions = debate.questions
     questions.append(question)
@@ -305,7 +296,6 @@ async def closing_arguments_view(request):
     data = request["data"]
     debate_id: int = data["debate_id"]
     async with async_session() as session:
-        # Check if the debate exists in the database
         debate: db_models.Debate = await get_item_by_id(
             session, debate_id, db_models.Debate
         )
@@ -366,7 +356,6 @@ async def closing_arguments_view(request):
             "text": con_closing,
         }
     )
-    # Update the debate logs in the database
     async with async_session() as session:
         pro_chat_history = [content.dict() for content in pro_client_chat.get_history()]
         con_chat_history = [content.dict() for content in con_client_chat.get_history()]
@@ -411,11 +400,10 @@ async def closing_arguments_view(request):
 )
 @request_schema(JudgeDebateRequest)
 async def judge_debate_view(request):
-    api_key = request.app["api_key"]  # Moderator client uses this directly if re-init
+    api_key = request.app["api_key"]
     data = request["data"]
     debate_id = data["debate_id"]
     async with async_session() as session:
-        # Check if the debate exists in the database
         debate: db_models.Debate = await get_item_by_id(
             session, debate_id, db_models.Debate
         )
@@ -426,28 +414,26 @@ async def judge_debate_view(request):
     if not debate.logs:
         return web.json_response({"error": "No debate logs found"}, status=400)
 
-    # Ensure moderator client is available
     moderator_client = genai.Client(api_key=api_key)
     judgment_prompt = f"Based on the debate about {debate.topic}, provide a final judgment on who won the debate. Consider all arguments and rebuttals. Give one word answer: 'pro' or 'con'. Here is the transcript of the debate: {debate.logs}"
 
     judgment = (
         generate_text_content(
-            moderator_client,  # Pass the client instance
+            moderator_client,
             judgment_prompt,
-            system_instructions="You are a debate judge. Analyze the debate transcript and provide a final judgment on who won the debate.",
+            request.app["text_model_name"],
+            "You are a debate judge. Analyze the debate transcript and provide a final judgment on who won the debate.",
         )
         .text.strip()
         .lower()
     )
 
     if judgment not in ["pro", "con"]:
-        # Fallback or refine judgment if LLM gives more than one word
         if "pro" in judgment:
             judgment = "pro"
         elif "con" in judgment:
             judgment = "con"
         else:
-            # If still not pro/con, this indicates an issue with the LLM's adherence to the prompt
             return web.json_response(
                 {
                     "error": f"Invalid judgment received from model: {judgment}. Expected 'pro' or 'con'."
@@ -470,7 +456,6 @@ async def judge_debate_view(request):
             "text": f"Judgment: The winner is {judgment}.",
         }
     )
-    # Update the debate logs in the database
     async with async_session() as session:
         await update_item(
             session,
@@ -478,7 +463,6 @@ async def judge_debate_view(request):
             {"logs": debate.logs, "winner": judgment},
             db_models.Debate,
         )
-    # Log the judgment for debugging
     logger.info(f"Debate judged: {judgment}")
     response_data = JudgeDebateResponse().dump(
         {
