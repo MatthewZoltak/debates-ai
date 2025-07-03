@@ -10,35 +10,24 @@ import dotenv
 
 logger = logging.getLogger(__name__)
 
-dotenv.load_dotenv()  # Load environment variables from .env file
+dotenv.load_dotenv()
 DATABASE_HOST = os.environ.get("DATABASE_HOST", "localhost")
 DATABASE_PORT = os.environ.get("DATABASE_PORT", "5432")
 DATABASE_USER = os.environ.get("DATABASE_USER", "user")
 DATABASE_PASSWORD = os.environ.get("DATABASE_PASSWORD", "password")
 DATABASE_NAME = os.environ.get("DATABASE_NAME", "dbname")
-# This is your ASYNCHRONOUS database URL
 DATABASE_URL = f"postgresql+asyncpg://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}:{DATABASE_PORT}/{DATABASE_NAME}"
 
 engine = create_async_engine(DATABASE_URL, echo=True)
-
-# This is your asynchronous session factory
 async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
 async def get_db_session() -> AsyncSession:
-    """Dependency to get a DB session."""
     async with async_session() as session:
         yield session
 
 
 async def create_item(session: AsyncSession, item_data: dict, model_class):
-    """
-    Creates a new item in the database.
-    :param session: The AsyncSession instance.
-    :param item_data: Dictionary containing the data for the new item.
-    :param model_class: The SQLAlchemy model class (e.g., User, Debate).
-    :return: The created item instance, or None if creation failed.
-    """
     try:
         db_item = model_class(**item_data)
         session.add(db_item)
@@ -61,14 +50,6 @@ async def get_item_by_id(
     model_class,
     load_relationships: list[str] = None,
 ):
-    """
-    Retrieves an item by its ID.
-    :param session: The AsyncSession instance.
-    :param item_id: The ID of the item to retrieve.
-    :param model_class: The SQLAlchemy model class.
-    :param load_relationships: Optional list of relationship names to eagerly load.
-    :return: The item instance if found, otherwise None.
-    """
     try:
         stmt = select(model_class)
         if load_relationships:
@@ -93,15 +74,6 @@ async def get_all_items(
     limit: int = 100,
     load_relationships: list[str] = None,
 ) -> list:
-    """
-    Retrieves all items of a given model class with pagination.
-    :param session: The AsyncSession instance.
-    :param model_class: The SQLAlchemy model class.
-    :param skip: Number of items to skip (for pagination).
-    :param limit: Maximum number of items to return (for pagination).
-    :param load_relationships: Optional list of relationship names to eagerly load.
-    :return: A list of item instances.
-    """
     try:
         stmt = select(model_class).offset(skip).limit(limit)
         if load_relationships:
@@ -126,16 +98,6 @@ async def get_items_by_filters(
     load_relationships: list[str] = None,
     **filters,
 ) -> list:
-    """
-    Retrieves items based on specified filter criteria with pagination.
-    :param session: The AsyncSession instance.
-    :param model_class: The SQLAlchemy model class.
-    :param skip: Number of items to skip.
-    :param limit: Maximum number of items to return.
-    :param load_relationships: Optional list of relationship names to eagerly load.
-    :param filters: Keyword arguments where keys are attribute names and values are the filter values.
-    :return: A list of item instances matching the filters.
-    """
     try:
         stmt = select(model_class)
         for column_name, value in filters.items():
@@ -165,21 +127,11 @@ async def get_items_by_filters(
 async def update_item(
     session: AsyncSession, item_id: int, update_data: dict, model_class
 ):
-    """
-    Updates an existing item in the database.
-    :param session: The AsyncSession instance.
-    :param item_id: The ID of the item to update.
-    :param update_data: Dictionary containing the fields to update and their new values.
-    :param model_class: The SQLAlchemy model class.
-    :return: The updated item instance, or None if not found or update failed.
-    """
     try:
-        # First, retrieve the item
         db_item = await get_item_by_id(session, item_id, model_class)
         if db_item is None:
             return None
 
-        # Update the item's attributes
         for key, value in update_data.items():
             if hasattr(db_item, key):
                 setattr(db_item, key, value)
@@ -206,4 +158,4 @@ async def update_item(
 async def create_all_tables():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    await engine.dispose()  # Dispose engine after creation
+    await engine.dispose()

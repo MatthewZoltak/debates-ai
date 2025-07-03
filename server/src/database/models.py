@@ -2,8 +2,6 @@ from sqlalchemy import Column, Integer, String, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.orm import declarative_base
 
-
-# This is your declarative base
 Base = declarative_base()
 
 
@@ -24,12 +22,12 @@ class Debate(Base):
     user = relationship("User", back_populates="debates")
 
     topic = Column(String, nullable=False)
-    questions = Column(JSON, default=list)  # Default to an empty list
+    questions = Column(JSON, default=list)
 
-    current_turn = Column(String, nullable=False, default="pro")  # Default turn
-    logs = Column(JSON, default=list)  # Default to an empty list for logs
+    current_turn = Column(String, nullable=False, default="pro")
+    logs = Column(JSON, default=list)
 
-    pro_chat_history = Column(JSON, default=list)  # Default to an empty list
-    con_chat_history = Column(JSON, default=list)  # Default to an empty list
+    pro_chat_history = Column(JSON, default=list)
+    con_chat_history = Column(JSON, default=list)
 
-    winner = Column(String, nullable=True)  # Winner can be null initially
+    winner = Column(String, nullable=True)

@@ -19,6 +19,7 @@ ALGORITHMS = ["RS256"]
 jwks_cache = None
 
 
+# AI Generated Code
 async def get_jwks():
     global jwks_cache
     if jwks_cache:
