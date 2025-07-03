@@ -53,7 +53,7 @@ logger = logging.getLogger(__name__)
     },
 )
 @request_schema(StartDebateRequest)
-async def start_debate_view(request):
+async def start_debate_view(request) -> web.Response:
     user_id = request["user_id"]
     api_key = request.app["api_key"]
     text_model_name = request.app["text_model_name"]
@@ -79,11 +79,15 @@ async def start_debate_view(request):
         model=text_model_name,
     )
 
-    pro_side_response = send_chat_message(
-        pro_side_chat, f"Opening statement for the debate topic: {topic}"
+    pro_side_response = (
+        await send_chat_message(
+            pro_side_chat, f"Opening statement for the debate topic: {topic}"
+        )
     ).text
-    con_side_response = send_chat_message(
-        con_side_chat, f"Opening statement for the debate topic: {topic}"
+    con_side_response = (
+        await send_chat_message(
+            con_side_chat, f"Opening statement for the debate topic: {topic}"
+        )
     ).text
 
     debate_logs.append(
@@ -156,7 +160,7 @@ async def start_debate_view(request):
     },
 )
 @request_schema(ProcessTurnRequest)
-async def process_turn_view(request):
+async def process_turn_view(request) -> web.Response:
     max_sentences = request.app["max_sentences"]
     api_key = request.app["api_key"]
     text_model_name = request.app["text_model_name"]
@@ -193,13 +197,17 @@ async def process_turn_view(request):
 
     debate_logs = debate.logs
 
-    pro_side_response = send_chat_message(
-        pro_client_chat,
-        f"Respond to the question in favour of: {question}. Provide your argument in {max_sentences} sentences.",
+    pro_side_response = (
+        await send_chat_message(
+            pro_client_chat,
+            f"Respond to the question in favour of: {question}. Provide your argument in {max_sentences} sentences.",
+        )
     ).text
-    con_side_response = send_chat_message(
-        con_client_chat,
-        f"Respond to the question in opposition to: {question}. Provide your argument in {max_sentences} sentences.",
+    con_side_response = (
+        await send_chat_message(
+            con_client_chat,
+            f"Respond to the question in opposition to: {question}. Provide your argument in {max_sentences} sentences.",
+        )
     ).text
     debate_logs.append(
         {
@@ -222,13 +230,17 @@ async def process_turn_view(request):
             "text": con_side_response,
         }
     )
-    pro_side_rebuttal = send_chat_message(
-        pro_client_chat,
-        f"Rebuttal to the con side's argument: {con_side_response}. Provide your rebuttal in {max_sentences} sentences.",
+    pro_side_rebuttal = (
+        await send_chat_message(
+            pro_client_chat,
+            f"Rebuttal to the con side's argument: {con_side_response}. Provide your rebuttal in {max_sentences} sentences.",
+        )
     ).text
-    con_side_rebuttal = send_chat_message(
-        con_client_chat,
-        f"Rebuttal to the pro side's argument: {pro_side_response}. Provide your rebuttal in {max_sentences} sentences.",
+    con_side_rebuttal = (
+        await send_chat_message(
+            con_client_chat,
+            f"Rebuttal to the pro side's argument: {pro_side_response}. Provide your rebuttal in {max_sentences} sentences.",
+        )
     ).text
     debate_logs.append(
         {
@@ -288,7 +300,7 @@ async def process_turn_view(request):
     },
 )
 @request_schema(ClosingArgmentRequest)
-async def closing_arguments_view(request):
+async def closing_arguments_view(request) -> web.Response:
     api_key = request.app["api_key"]
     text_model_name = request.app["text_model_name"]
     max_sentences = request.app["max_sentences"]
@@ -324,14 +336,18 @@ async def closing_arguments_view(request):
             {"error": "Chat not initialized. Start debate first."}, status=400
         )
 
-    pro_closing = send_chat_message(
-        pro_client_chat,
-        f"Provide your closing argument for the debate in {max_sentences} sentences.",
+    pro_closing = (
+        await send_chat_message(
+            pro_client_chat,
+            f"Provide your closing argument for the debate in {max_sentences} sentences.",
+        )
     ).text
 
-    con_closing = send_chat_message(
-        con_client_chat,
-        f"Provide your closing argument for the debate in {max_sentences} sentences.",
+    con_closing = (
+        await send_chat_message(
+            con_client_chat,
+            f"Provide your closing argument for the debate in {max_sentences} sentences.",
+        )
     ).text
 
     debate.logs.append(
@@ -399,7 +415,7 @@ async def closing_arguments_view(request):
     },
 )
 @request_schema(JudgeDebateRequest)
-async def judge_debate_view(request):
+async def judge_debate_view(request) -> web.Response:
     api_key = request.app["api_key"]
     data = request["data"]
     debate_id = data["debate_id"]
@@ -418,7 +434,7 @@ async def judge_debate_view(request):
     judgment_prompt = f"Based on the debate about {debate.topic}, provide a final judgment on who won the debate. Consider all arguments and rebuttals. Give one word answer: 'pro' or 'con'. Here is the transcript of the debate: {debate.logs}"
 
     judgment = (
-        generate_text_content(
+        await generate_text_content(
             moderator_client,
             judgment_prompt,
             request.app["text_model_name"],
@@ -491,7 +507,7 @@ async def judge_debate_view(request):
     },
 )
 @querystring_schema(GetDebateRequest)
-async def get_debate(request):
+async def get_debate(request) -> web.Response:
     query_params = request["querystring"]
     debate_id: int = query_params["debate_id"]
     async with async_session() as session:
@@ -526,7 +542,7 @@ async def get_debate(request):
     },
 )
 @querystring_schema(GetUserDebatesRequest)
-async def get_user_debates(request):
+async def get_user_debates(request) -> web.Response:
     user_id = request["user_id"]
     async with async_session() as session:
         filters = {"user_id": user_id}

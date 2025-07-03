@@ -1,9 +1,10 @@
 from google import genai
-from google.genai.types import Content
+from google.genai.types import Content, GenerateContentResponse
+from google.genai.chats import AsyncChats
 
 
-def send_chat_message(chat, message: str):
-    response = chat.send_message(message)
+async def send_chat_message(chat: AsyncChats, message: str) -> GenerateContentResponse:
+    response = await chat.send_message(message)
     return response
 
 
@@ -12,10 +13,10 @@ def start_chat(
     system_instructions: str,
     model: str,
     history: list[dict] = [],
-):
+) -> AsyncChats:
     if history:
         history = [Content(**item) for item in history]
-    chat = client.chats.create(
+    chat = client.aio.chats.create(
         model=model,
         config=genai.types.GenerateContentConfig(
             system_instruction=system_instructions
@@ -25,14 +26,14 @@ def start_chat(
     return chat
 
 
-def generate_text_content(
+async def generate_text_content(
     client: genai.Client,
     text: str,
     system_instructions: str,
     model_name: str,
     max_output_tokens: int = 100,
-) -> genai.types.GenerateContentResponse:
-    question_response = client.models.generate_content(
+) -> GenerateContentResponse:
+    question_response = await client.aio.models.generate_content(
         model=model_name,
         contents=[text],
         config=genai.types.GenerateContentConfig(

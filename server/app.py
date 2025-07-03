@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-async def create_app():
+async def create_app() -> web.Application:
     app = web.Application()
     app["api_key"] = os.environ.get("GEMINI_API_KEY")
     if not app["api_key"]:
