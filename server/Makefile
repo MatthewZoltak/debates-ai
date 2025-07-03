@@ -1,4 +1,3 @@
-# when i run make, it should do black lint
 .PHONY: all lint format
 all: lint format
 lint:
