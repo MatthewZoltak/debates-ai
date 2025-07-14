@@ -1,56 +1,183 @@
 // src/components/Navbar.js
-import React from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react';
 import './Navbar.css';
 
 function Navbar() {
-  const {
-    loginWithRedirect,
-    logout,
-    user,
-    isAuthenticated,
-    isLoading: authIsLoading,
-  } = useAuth0();
+  const { isAuthenticated, loginWithRedirect, logout, user } = useAuth0();
+  const location = useLocation();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleLogin = () => {
+    loginWithRedirect({
+      appState: { returnTo: window.location.pathname }
+    });
+  };
+
+  const handleLogout = () => {
+    logout({
+      logoutParams: {
+        returnTo: window.location.origin
+      }
+    });
+  };
+
+  const toggleMobileMenu = () => {
+    setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false);
+  };
+
+  const isActive = (path) => {
+    return location.pathname === path;
+  };
 
   return (
     <nav className="navbar">
       <div className="navbar-container">
-        <Link to="/" className="navbar-logo">
-          🗣️ AI Debate Arena
+        <Link to="/" className="navbar-brand" onClick={closeMobileMenu}>
+          <img src="/logo.svg" alt="AI Debate Arena" className="navbar-logo" />
+          <span className="navbar-title">AI Debate Arena</span>
         </Link>
-        <ul className="nav-menu">
+
+        {/* Desktop Navigation */}
+        <ul className="navbar-nav">
           <li className="nav-item">
-            <NavLink to="/" className={({ isActive }) => "nav-links" + (isActive ? " activated" : "")} end>
-              Home
-            </NavLink>
+            <Link 
+              to="/" 
+              className={`nav-link ${isActive('/') ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              🏠 Home
+            </Link>
           </li>
-          {isAuthenticated && ( // Only show "My Debates" if authenticated
+          <li className="nav-item">
+            <Link 
+              to="/public-debates" 
+              className={`nav-link ${isActive('/public-debates') ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              🌍 Public Debates
+            </Link>
+          </li>
+          {isAuthenticated && (
             <li className="nav-item">
-              <NavLink to="/my-debates" className={({ isActive }) => "nav-links" + (isActive ? " activated" : "")}>
-                My Debates
-              </NavLink>
+              <Link 
+                to="/my-debates" 
+                className={`nav-link ${isActive('/my-debates') ? 'active' : ''}`}
+                onClick={closeMobileMenu}
+              >
+                📚 My Debates
+              </Link>
+            </li>
+          )}
+          {isAuthenticated && (
+            <li className="nav-item">
+              <Link 
+                to="/settings" 
+                className={`nav-link ${isActive('/settings') ? 'active' : ''}`}
+                onClick={closeMobileMenu}
+              >
+                ⚙️ Settings
+              </Link>
             </li>
           )}
         </ul>
-        <div className="navbar-auth-buttons">
-          {authIsLoading ? (
-            <span className="nav-links">Loading...</span>
-          ) : !isAuthenticated ? (
-            <button onClick={() => loginWithRedirect()} className="nav-button login-button">
-              Log In / Sign Up
-            </button>
+
+        {/* Desktop Auth Section */}
+        <div className="auth-section">
+          {isAuthenticated ? (
+            <div className="user-info">
+              <div className="user-avatar">
+                {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+              </div>
+              <span>{user?.name || user?.email}</span>
+              <button onClick={handleLogout} className="auth-button logout">
+                🚪 Logout
+              </button>
+            </div>
           ) : (
-            <>
-              {user?.picture && <img src={user.picture} alt={user.name || "User"} className="navbar-user-pic" />}
-              <span className="nav-links user-greeting">Hi, {user?.given_name || user?.nickname || 'User'}!</span>
-              <button
-                onClick={() => logout({ logoutParams: { returnTo: window.location.origin } })}
-                className="nav-button logout-button"
+            <button onClick={handleLogin} className="auth-button login">
+              🔑 Login
+            </button>
+          )}
+        </div>
+
+        {/* Mobile Menu Button */}
+        <button 
+          className="mobile-menu-button" 
+          onClick={toggleMobileMenu}
+          aria-label="Toggle mobile menu"
+        >
+          {mobileMenuOpen ? '✕' : '☰'}
+        </button>
+      </div>
+
+      {/* Mobile Menu */}
+      <div className={`mobile-menu ${mobileMenuOpen ? 'open' : ''}`}>
+        <ul className="mobile-nav">
+          <li className="nav-item">
+            <Link 
+              to="/" 
+              className={`nav-link ${isActive('/') ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              🏠 Home
+            </Link>
+          </li>
+          <li className="nav-item">
+            <Link 
+              to="/public-debates" 
+              className={`nav-link ${isActive('/public-debates') ? 'active' : ''}`}
+              onClick={closeMobileMenu}
+            >
+              🌍 Public Debates
+            </Link>
+          </li>
+          {isAuthenticated && (
+            <li className="nav-item">
+              <Link 
+                to="/my-debates" 
+                className={`nav-link ${isActive('/my-debates') ? 'active' : ''}`}
+                onClick={closeMobileMenu}
               >
-                Log Out
+                📚 My Debates
+              </Link>
+            </li>
+          )}
+          {isAuthenticated && (
+            <li className="nav-item">
+              <Link 
+                to="/settings" 
+                className={`nav-link ${isActive('/settings') ? 'active' : ''}`}
+                onClick={closeMobileMenu}
+              >
+                ⚙️ Settings
+              </Link>
+            </li>
+          )}
+        </ul>
+
+        <div className="mobile-auth">
+          {isAuthenticated ? (
+            <>
+              <div className="user-info">
+                <div className="user-avatar">
+                  {user?.name?.charAt(0) || user?.email?.charAt(0) || 'U'}
+                </div>
+                <span>{user?.name || user?.email}</span>
+              </div>
+              <button onClick={handleLogout} className="auth-button logout">
+                🚪 Logout
               </button>
             </>
+          ) : (
+            <button onClick={handleLogin} className="auth-button login">
+              🔑 Login
+            </button>
           )}
         </div>
       </div>

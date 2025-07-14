@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth0 } from '@auth0/auth0-react'; // Import useAuth0
 import { authenticatedFetch } from '../services/api'; // Import your helper
-import '../App.css';
+import './DebatePage.css';
 
 // Speech API Helper - Keep your existing robust version here
 // ... (your existing speak, startSpeakingInternal, proceedWithSpeech, loadVoices functions)
@@ -82,6 +82,15 @@ function DebatePage() {
   const [needsQuestion, setNeedsQuestion] = useState(false);
   const [isDebateEnded, setIsDebateEnded] = useState(false);
   const [isJudged, setIsJudged] = useState(false);
+  const [debateInfo, setDebateInfo] = useState({
+    is_public: false,
+    like_count: 0,
+    is_liked_by_user: false,
+    creator_name: '',
+    user_id: null,
+  });
+  const [liking, setLiking] = useState(false);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
   
   const debateLogRef = useRef(null);
   const initialLoadDoneRef = useRef(false);
@@ -107,6 +116,15 @@ function DebatePage() {
     setDebateLog(data.logs || []);
     // setQuestionsList(data.questions || []); // Backend manages this internally
     setWinner(data.winner || null);
+
+    // Update debate info
+    setDebateInfo({
+      is_public: data.is_public || false,
+      like_count: data.like_count || 0,
+      is_liked_by_user: data.is_liked_by_user || false,
+      creator_name: data.creator_name || '',
+      user_id: data.user_id || null,
+    });
 
     const hasWinner = !!data.winner;
     setIsJudged(hasWinner);
@@ -262,6 +280,63 @@ function DebatePage() {
     }
   };
 
+  const handleLike = async () => {
+    if (!isAuthenticated) {
+      setError('Please log in to like debates.');
+      return;
+    }
+
+    setLiking(true);
+    try {
+      const data = await authenticatedFetch(
+        '/toggle_like',
+        {
+          method: 'POST',
+          body: JSON.stringify({ debate_id: debateId }),
+        },
+        getAccessTokenSilently
+      );
+      
+      setDebateInfo(prev => ({
+        ...prev,
+        is_liked_by_user: data.is_liked,
+        like_count: data.like_count,
+      }));
+    } catch (err) {
+      console.error('Failed to toggle like:', err);
+      setError('Failed to update like. Please try again.');
+    } finally {
+      setLiking(false);
+    }
+  };
+
+  const handleToggleVisibility = async () => {
+    setTogglingVisibility(true);
+    try {
+      const data = await authenticatedFetch(
+        '/toggle_debate_visibility',
+        {
+          method: 'POST',
+          body: JSON.stringify({ 
+            debate_id: debateId, 
+            is_public: !debateInfo.is_public 
+          }),
+        },
+        getAccessTokenSilently
+      );
+      
+      setDebateInfo(prev => ({
+        ...prev,
+        is_public: data.is_public,
+      }));
+    } catch (err) {
+      console.error('Failed to toggle visibility:', err);
+      setError('Failed to update debate visibility. Please try again.');
+    } finally {
+      setTogglingVisibility(false);
+    }
+  };
+
   const resetAndGoHome = () => { /* ... same as before ... */
     synth.cancel();
     initialLoadDoneRef.current = false; 
@@ -269,98 +344,165 @@ function DebatePage() {
   };
 
   if (isLoading) { // Page-level initial loading
-    return <div className="App-main loading-indicator" style={{textAlign: 'center', padding: '2rem', fontSize: '1.5em'}}>Loading Debate Details...</div>;
+    return (
+      <div className="debate-page">
+        <div className="loading-message">Loading Debate Details...</div>
+      </div>
+    );
   }
 
   if (!isAuthenticated && !initialLoadDoneRef.current) { // If initial check shows not authenticated
-      return <div className="App-main error-message" style={{textAlign: 'center', padding: '2rem'}}>Please log in to view or participate in debates.</div>;
+      return (
+        <div className="debate-page">
+          <div className="error-message">Please log in to view or participate in debates.</div>
+        </div>
+      );
   }
   
+  const getDebateStatus = () => {
+    if (isJudged) return 'completed';
+    if (isDebateEnded) return 'in-progress';
+    return 'pending';
+  };
+
   return ( // Your existing JSX, ensure buttons use `isProcessingAction` for disabled state
-    <>
-      <header className="App-header">
-        <h1>🗣️ AI Debate Arena 🤖</h1>
-        <button onClick={() => synth.cancel()} disabled={!synth || typeof synth.speaking === 'undefined' || !synth.speaking}>
-            Stop Speaking
-        </button>
-        <button onClick={resetAndGoHome} style={{ marginLeft: '10px'}} disabled={isProcessingAction}>New Debate Topic</button>
-      </header>
-
-      <main className="App-main">
+    <div className="debate-page">
+      <div className="debate-header">
+        <h2>🗣️ AI Debate Arena 🤖</h2>
         {topic && (
-          <section className="topic-display">
-            <h2>Debating: {topic}</h2>
-            <p style={{fontSize: '0.8em', color: '#aaa'}}>Debate ID: {debateId}</p>
-          </section>
-        )}
-
-        {error && <div className="error-message">{error}</div>}
-
-        <section className="debate-log-section">
-            <h2>Debate Log</h2>
-            <div className="debate-log" ref={debateLogRef}>
-            {debateLog.map((entry, index) => (
-                <div key={`${debateId}-${index}-${entry.speaker}-${entry.text?.slice(0,10)}`}
-                     className={`log-entry ${entry.speaker?.toLowerCase().replace(/[^a-z0-9]/g, '')}`}>
-                    <strong>{entry.speaker}:</strong>
-                    <p>{entry.text}</p>
-                </div>
-            ))}
-            {isProcessingAction && <div className="loading-indicator-inline">Processing... 🤔</div>}
-            {isJudged && winner && <div className="log-entry judge"><strong>--- FINAL VERDICT: {winner.toUpperCase()} WINS ---</strong></div>}
+          <>
+            <div className="debate-topic">{topic}</div>
+            <div className={`debate-status ${getDebateStatus()}`}>
+              {isJudged ? 'Completed' : isDebateEnded ? 'In Progress' : 'Pending'}
             </div>
-        </section>
+            
+            <div className="debate-info">
+              <div className="debate-meta">
+                <span className="creator">by {debateInfo.creator_name}</span>
+                <div className="debate-stats">
+                  <button
+                    onClick={handleLike}
+                    disabled={liking}
+                    className={`like-button ${debateInfo.is_liked_by_user ? 'liked' : ''}`}
+                  >
+                    {debateInfo.is_liked_by_user ? '❤️' : '🤍'} {debateInfo.like_count}
+                  </button>
+                </div>
+              </div>
+              
+              {isJudged && debateInfo.user_id && (
+                <div className="debate-controls">
+                  <button
+                    onClick={handleToggleVisibility}
+                    disabled={togglingVisibility}
+                    className={`visibility-button ${debateInfo.is_public ? 'public' : 'private'}`}
+                  >
+                    {togglingVisibility ? 'Updating...' : 
+                     debateInfo.is_public ? '🌍 Public' : '🔒 Private'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {error && <div className="error-message">{error}</div>}
+
+      {winner && (
+        <div className="winner-announcement">
+          🏆 Winner: {winner.toUpperCase()} SIDE 🏆
+        </div>
+      )}
+
+      <div className="debate-chat">
+        <div className="chat-messages" ref={debateLogRef}>
+          {debateLog.map((entry, index) => (
+            <div key={`${debateId}-${index}-${entry.speaker}-${entry.text?.slice(0,10)}`} className="message">
+              <div className={`message-avatar ${entry.speaker?.toLowerCase()}`}>
+                {entry.speaker?.charAt(0).toUpperCase()}
+              </div>
+              <div className="message-content">
+                <div className="message-header">
+                  <span className="message-author">{entry.speaker}</span>
+                  <span className="message-time">
+                    {new Date().toLocaleTimeString()}
+                  </span>
+                </div>
+                <div className="message-text">{entry.text}</div>
+              </div>
+            </div>
+          ))}
+          {isProcessingAction && (
+            <div className="message">
+              <div className="message-avatar moderator">M</div>
+              <div className="message-content">
+                <div className="message-text">Processing... 🤔</div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {!isJudged && !isDebateEnded && needsQuestion && !isProcessingAction && (
-            <section className="input-section">
-                <h2>Engage Further</h2>
-                <form onSubmit={handleProcessTurn} className="question-form">
-                    <input
-                        type="text"
-                        value={currentInput}
-                        onChange={(e) => setCurrentInput(e.target.value)}
-                        placeholder="Enter Next Question..."
-                        disabled={isProcessingAction}
-                    />
-                    <button type="submit" disabled={isProcessingAction}>Submit Question</button>
-                </form>
-                <button
-                    className="closing-button"
-                    onClick={handleClosingArguments}
-                    disabled={isProcessingAction}
-                >
-                    Proceed to Closing Arguments
-                </button>
-            </section>
+          <div className="chat-input">
+            <form onSubmit={handleProcessTurn} className="input-form">
+              <div className="input-group">
+                <label htmlFor="question-input">Enter Next Question</label>
+                <textarea
+                  id="question-input"
+                  value={currentInput}
+                  onChange={(e) => setCurrentInput(e.target.value)}
+                  placeholder="Ask a follow-up question to continue the debate..."
+                  disabled={isProcessingAction}
+                />
+              </div>
+              <button type="submit" className="send-button" disabled={isProcessingAction}>
+                Submit Question
+              </button>
+            </form>
+          </div>
+        )}
+      </div>
+
+      <div className="debate-actions">
+        {!isJudged && !isDebateEnded && !needsQuestion && !isProcessingAction && (
+          <button
+            className="action-button primary"
+            onClick={handleClosingArguments}
+            disabled={isProcessingAction}
+          >
+            Proceed to Closing Arguments
+          </button>
         )}
 
         {!isJudged && isDebateEnded && !isProcessingAction && (
-            <section className="input-section judge-section">
-                <h2>Awaiting Verdict</h2>
-                <button
-                    className="judge-button"
-                    onClick={handleJudgeDebate}
-                    disabled={isProcessingAction}
-                >
-                    Judge the Debate! 🧑‍⚖️
-                </button>
-            </section>
+          <button
+            className="action-button primary"
+            onClick={handleJudgeDebate}
+            disabled={isProcessingAction}
+          >
+            🧑‍⚖️ Judge the Debate!
+          </button>
         )}
 
         {isJudged && !isProcessingAction && (
-            <section className="input-section new-debate-section">
-                <h2>Debate Complete!</h2>
-                <button
-                    className="new-debate-button"
-                    onClick={resetAndGoHome}
-                >
-                    Start a New Debate
-                </button>
-            </section>
+          <button
+            className="action-button primary"
+            onClick={resetAndGoHome}
+          >
+            Start a New Debate
+          </button>
         )}
-      </main>
-      {/* ... footer ... */}
-    </>
+
+        <button
+          className="action-button secondary"
+          onClick={() => synth.cancel()}
+          disabled={!synth || typeof synth.speaking === 'undefined' || !synth.speaking}
+        >
+          Stop Speaking
+        </button>
+      </div>
+    </div>
   );
 }
 

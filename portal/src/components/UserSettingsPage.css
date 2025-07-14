@@ -1,0 +1,324 @@
+.user-settings-page {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.user-settings-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.user-settings-header h2 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: var(--primary);
+  margin-bottom: 0.5rem;
+  letter-spacing: -1px;
+}
+
+.user-settings-header p {
+  color: var(--gray-dark);
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.add-key-section {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 4px 24px rgba(91, 109, 250, 0.08);
+  border: 1px solid var(--gray-medium);
+}
+
+.add-key-section h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 1.5rem;
+}
+
+.add-key-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: var(--primary);
+  font-size: 0.95rem;
+}
+
+.form-group input,
+.form-group select {
+  padding: 0.875rem 1rem;
+  border: 1.5px solid var(--gray-medium);
+  border-radius: 8px;
+  font-size: 1rem;
+  background: #fff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(91, 109, 250, 0.1);
+}
+
+.add-key-button {
+  padding: 0.875rem 1.5rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s, box-shadow 0.2s;
+  justify-self: start;
+}
+
+.add-key-button:hover:not(:disabled) {
+  background: #4253c5;
+  box-shadow: 0 4px 16px rgba(91, 109, 250, 0.2);
+}
+
+.add-key-button:disabled {
+  background: var(--gray-medium);
+  color: var(--gray-dark);
+  cursor: not-allowed;
+}
+
+.status-message {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+  font-weight: 500;
+  text-align: center;
+}
+
+.status-message.success {
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status-message.error {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.status-message.info {
+  background: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+.keys-section {
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 4px 24px rgba(91, 109, 250, 0.08);
+  border: 1px solid var(--gray-medium);
+}
+
+.keys-section h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 1.5rem;
+}
+
+.keys-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1rem;
+}
+
+.keys-table th {
+  text-align: left;
+  padding: 1rem 0.75rem;
+  font-weight: 600;
+  color: var(--primary);
+  border-bottom: 2px solid var(--gray-medium);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.keys-table td {
+  padding: 1rem 0.75rem;
+  border-bottom: 1px solid var(--gray-light);
+  vertical-align: middle;
+}
+
+.keys-table tr:hover {
+  background: var(--gray-light);
+}
+
+.key-provider {
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.key-dates {
+  font-size: 0.9rem;
+  color: var(--gray-dark);
+}
+
+.key-value {
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+  color: var(--gray-dark);
+  background: var(--gray-light);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  display: inline-block;
+  min-width: 120px;
+}
+
+.key-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #4253c5;
+  box-shadow: 0 2px 8px rgba(91, 109, 250, 0.2);
+}
+
+.btn-secondary {
+  background: var(--gray-light);
+  color: var(--primary);
+}
+
+.btn-secondary:hover {
+  background: var(--gray-medium);
+}
+
+.btn-warning {
+  background: #f6c700;
+  color: #333;
+}
+
+.btn-warning:hover {
+  background: #e6b800;
+}
+
+.btn-danger {
+  background: #e74c3c;
+  color: #fff;
+}
+
+.btn-danger:hover {
+  background: #c0392b;
+}
+
+.edit-form {
+  display: grid;
+  gap: 1rem;
+  padding: 1rem;
+  background: var(--gray-light);
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+.edit-form .form-group {
+  margin: 0;
+}
+
+.edit-form .btn {
+  justify-self: start;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--gray-dark);
+}
+
+.empty-state h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--primary);
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.help-text {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: var(--gray-light);
+  border-radius: 12px;
+  font-size: 0.95rem;
+  color: var(--gray-dark);
+  line-height: 1.6;
+}
+
+.help-text a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.help-text a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .user-settings-page {
+    padding: 1rem;
+  }
+  
+  .keys-table {
+    font-size: 0.9rem;
+  }
+  
+  .keys-table th,
+  .keys-table td {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  .key-actions {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+} 

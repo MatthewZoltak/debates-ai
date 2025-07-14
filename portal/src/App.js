@@ -7,7 +7,9 @@ import Navbar from './components/Navbar';
 import HomePage from './components/HomePage';
 import DebatePage from './components/DebatePage';
 import MyDebatesPage from './components/MyDebatesPage';
-import ProtectedRoute from './components/ProtectedRoute'; // Import ProtectedRoute
+import PublicDebatesPage from './components/PublicDebatesPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import UserSettingsPage from './components/UserSettingsPage';
 import './App.css';
 
 const MainAppLoadingIndicator = () => (
@@ -17,7 +19,7 @@ const MainAppLoadingIndicator = () => (
 );
 
 function App() {
-  const { isLoading: authIsLoading, error: authError, isAuthenticated, loginWithRedirect } = useAuth0();
+  const { isLoading: authIsLoading, error: authError } = useAuth0();
 
   if (authIsLoading) {
     return <MainAppLoadingIndicator />;
@@ -33,11 +35,6 @@ function App() {
       </div>
     );
   }
-
-  if (!isAuthenticated) {
-    loginWithRedirect(); // Redirect to Auth0 login if not authenticated
-    return null; // Prevent rendering the app until authentication completes
-  }
   
   return (
     <Router>
@@ -48,11 +45,35 @@ function App() {
             <Route path="/" element={<HomePage />} />
             <Route
               path="/my-debates"
-              element={<ProtectedRoute component={MyDebatesPage} />}
+              element={
+                <ProtectedRoute>
+                  <MyDebatesPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/public-debates"
+              element={
+                <ProtectedRoute>
+                  <PublicDebatesPage />
+                </ProtectedRoute>
+              }
             />
             <Route
               path="/debate/:debateId"
-              element={<ProtectedRoute component={DebatePage} />}
+              element={
+                <ProtectedRoute>
+                  <DebatePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <ProtectedRoute>
+                  <UserSettingsPage />
+                </ProtectedRoute>
+              } 
             />
           </Routes>
         </main>

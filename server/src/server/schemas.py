@@ -44,6 +44,8 @@ class DebateLog(Schema):
 class StartDebateRequest(Schema):
     user_id = fields.Integer()
     topic = fields.String(required=True)
+    model = fields.String(required=True)
+    api_key_id = fields.Integer(required=True)
 
 
 class StartDebateResponse(Schema):
@@ -106,6 +108,12 @@ class GetDebateResponse(Schema):
     questions = fields.List(fields.String)
     logs = fields.List(fields.Nested(DebateLog))
     winner = fields.String(required=False, allow_none=True)
+    is_public = fields.Boolean(required=True)
+    created_at = fields.DateTime()
+    updated_at = fields.DateTime()
+    like_count = fields.Integer(required=True)
+    is_liked_by_user = fields.Boolean(required=True)
+    creator_name = fields.String(required=True)
 
 
 class GetUserDebatesResponse(Schema):
@@ -114,6 +122,40 @@ class GetUserDebatesResponse(Schema):
 
 class GetUserDebatesRequest(Schema):
     user_id = fields.Integer(required=False, allow_none=True, missing=None)
+
+
+class GetPublicDebatesRequest(Schema):
+    page = fields.Integer(required=False, missing=1)
+    per_page = fields.Integer(required=False, missing=10)
+    sort_by = fields.String(required=False, missing="created_at")  # created_at, likes, topic
+
+
+class GetPublicDebatesResponse(Schema):
+    debates = fields.List(fields.Nested(GetDebateResponse), required=True)
+    total_count = fields.Integer(required=True)
+    page = fields.Integer(required=True)
+    per_page = fields.Integer(required=True)
+    total_pages = fields.Integer(required=True)
+
+
+class ToggleDebateVisibilityRequest(Schema):
+    debate_id = fields.Integer(required=True)
+    is_public = fields.Boolean(required=True)
+
+
+class ToggleDebateVisibilityResponse(Schema):
+    message = fields.String(required=True)
+    is_public = fields.Boolean(required=True)
+
+
+class ToggleLikeRequest(Schema):
+    debate_id = fields.Integer(required=True)
+
+
+class ToggleLikeResponse(Schema):
+    message = fields.String(required=True)
+    is_liked = fields.Boolean(required=True)
+    like_count = fields.Integer(required=True)
 
 
 class SignupRequest(Schema):
