@@ -206,7 +206,6 @@ function UserSettingsPage() {
                 <th>Nickname</th>
                 <th>Provider</th>
                 <th>Created</th>
-                <th>Updated</th>
                 <th>API Key</th>
                 <th>Actions</th>
               </tr>
@@ -247,7 +246,6 @@ function UserSettingsPage() {
                         </div>
                       </td>
                       <td>{new Date(key.created_at).toLocaleDateString()}</td>
-                      <td>{new Date(key.updated_at).toLocaleDateString()}</td>
                       <td>
                         <div className="edit-form">
                           <div className="form-group">

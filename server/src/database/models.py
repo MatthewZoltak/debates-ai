@@ -35,7 +35,7 @@ class Debate(Base):
     winner = Column(String, nullable=True)
     
     # New fields for public debates
-    is_public = Column(Boolean, default=Falsegit )
+    is_public = Column(Boolean, default=False )
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now(), server_default=func.now())
     
