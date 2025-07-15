@@ -127,7 +127,9 @@ class GetUserDebatesRequest(Schema):
 class GetPublicDebatesRequest(Schema):
     page = fields.Integer(required=False, missing=1)
     per_page = fields.Integer(required=False, missing=10)
-    sort_by = fields.String(required=False, missing="created_at")  # created_at, likes, topic
+    sort_by = fields.String(
+        required=False, missing="created_at"
+    )  # created_at, likes, topic
 
 
 class GetPublicDebatesResponse(Schema):
@@ -160,3 +162,33 @@ class ToggleLikeResponse(Schema):
 
 class SignupRequest(Schema):
     id = fields.String(required=True)
+
+
+class UserAPIKeyRequest(Schema):
+    api_key = fields.String(required=True)
+    nickname = fields.String(required=True)
+    provider = fields.String(required=True, default="gemini")
+
+
+class UserAPIKeyResponse(Schema):
+    has_key = fields.Boolean(required=True)
+    valid = fields.Boolean(required=True)
+
+
+class UserAPIKeyListItem(Schema):
+    id = fields.Integer(required=True)
+    provider = fields.String(required=True)
+    nickname = fields.String(required=True)
+    created_at = fields.DateTime()
+    updated_at = fields.DateTime()
+
+
+class UserAPIKeyListResponse(Schema):
+    api_keys = fields.List(fields.Nested(UserAPIKeyListItem), required=True)
+
+
+class UserAPIKeyValueResponse(Schema):
+    id = fields.Integer(required=True)
+    provider = fields.String(required=True)
+    nickname = fields.String(required=True)
+    value = fields.String(required=True)

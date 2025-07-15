@@ -8,19 +8,23 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Encryption helpers for API keys
-_GEMINI_KEY_SECRET = os.environ.get('GEMINI_KEY_SECRET')
+_GEMINI_KEY_SECRET = os.environ.get("GEMINI_KEY_SECRET")
 if _GEMINI_KEY_SECRET is None:
-    raise RuntimeError('GEMINI_KEY_SECRET environment variable must be set for API key encryption.')
+    raise RuntimeError(
+        "GEMINI_KEY_SECRET environment variable must be set for API key encryption."
+    )
 fernet = Fernet(_GEMINI_KEY_SECRET.encode())
+
 
 def encrypt_api_key(api_key: str) -> str:
     return fernet.encrypt(api_key.encode()).decode()
+
 
 def decrypt_api_key(encrypted: str) -> str:
     try:
         return fernet.decrypt(encrypted.encode()).decode()
     except InvalidToken:
-        raise ValueError('Invalid encrypted API key or wrong secret.')
+        raise ValueError("Invalid encrypted API key or wrong secret.")
 
 
 async def send_chat_message(chat: AsyncChats, message: str) -> GenerateContentResponse:
